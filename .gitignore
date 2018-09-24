@@ -1,2 +1,4 @@
 moc_*
 *.o
+bin/
+Makefile
