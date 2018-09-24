@@ -164,13 +164,16 @@ void TcpWriterThread::run()
 
     QTcpSocket socket;
 
+    socket.setSocketOption(QAbstractSocket::KeepAliveOption, 1);
+    connect(&socket, &QTcpSocket::disconnected, this, &TcpWriterThread::disconnected);
+
     if (!socket.setSocketDescriptor(m_socketDescriptor)) {
         emit error(socket.error());
         return;
     }
 
     // TODO: Replace with a FSM state change
-    while (true) {
+    while (socket.state() == QTcpSocket::ConnectedState) {
         if (m_dataQueue->empty())
             continue;
 
@@ -183,11 +186,20 @@ void TcpWriterThread::run()
             out << checksum.sum;
             out << checksum.timestamp;
         }
+
+        std::cout << "TcpWriterThread: Connected to socket " << socket.socketDescriptor() << std::endl;
+
         int nBytes = socket.write(block);
         if (nBytes == 0)
             std::cout << "Failed to write output" << std::endl;
+        //socket.flush();
         std::cout << "Wrote " << nBytes << " bytes to socket" << std::endl;
     }
+
+    std::cout << "TCPWriterThread: disconnected!" << std::endl;
 }
 
- 
+void TcpWriterThread::disconnected()
+{
+    connected = false;
+}

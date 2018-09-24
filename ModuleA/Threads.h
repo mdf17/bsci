@@ -122,8 +122,12 @@ class TcpWriterThread : public QThread
   signals:
     void error(QTcpSocket::SocketError socketError);
 
+  public slots:
+    void disconnected();
+
   private:
     int m_socketDescriptor;
+    bool connected;
 };
 
 

@@ -16,33 +16,37 @@ class Consumer : public QObject
     Consumer(const std::string id, const QHostAddress hostAddress, const quint16 port);
     ~Consumer();
 
-    // connect to A via socket
-    //
-    // receive checksums for all channels
-    //
-    // output data to file (stdout)
-
     void init();
-    void run();
+    void run(); // override;
 
     std::shared_ptr<ThreadSafeQueue<QByteArray>> frameBuffer;
 
   signals:
     void error(QTcpSocket::SocketError socketError);
-    void disconnect();
     void quit();
 
   public slots:
     void readBlock();
+    void disconnected();
+    void socketChanged();
+    void catchSocketError();
 
   private:
+    // Allow multiple Consumers to exist
     std::string m_id;
 
+    // Host IP Address and port number
     QHostAddress m_ipAddress;
     quint16 m_port;
 
+    // connect to A via socket
+    // receive checksums for all channels
     QTcpSocket *m_socket;
+
+    // output data to file (stdout)
     FileWriterThread *m_writer;
+
+    bool connectedToHost;
 };
 
 #endif

@@ -2,25 +2,30 @@
 
 #include "Consumer.h"
 
-Consumer::Consumer(const std::string id, const QHostAddress ipAddress, const quint16 port) 
-    : m_id(id), m_ipAddress(ipAddress), m_port(port)
+Consumer::Consumer(const std::string id, const QHostAddress ipAddress, const quint16 port)
+    : QObject(), m_id(id), m_ipAddress(ipAddress), m_port(port)
 { 
     frameBuffer.reset(new ThreadSafeQueue<QByteArray>(MAX_QUEUE_SIZE));
 
-    m_socket = new QTcpSocket(this);
-    m_socket->setReadBufferSize(1520);
-    m_socket->connectToHost(m_ipAddress, m_port, QIODevice::ReadOnly);
-    connect(m_socket, &QTcpSocket::readyRead, this, &Consumer::readBlock);
+    //m_socket = new QTcpSocket; //(this);
 
-    const int timeout = 5 * 1000;
-    if (!m_socket->waitForConnected(timeout)) {
-        emit error(m_socket->error());
-        return;
-    }
+    //m_socket->setReadBufferSize(1520);
+    //m_socket->setSocketOption(QAbstractSocket::KeepAliveOption, 1);
+    //m_socket->connectToHost(m_ipAddress, m_port, QIODevice::ReadOnly);
+    ////connect(m_socket, &QTcpSocket::stateChanged, this, &Consumer::socketChanged);
+    //connect(m_socket, &QTcpSocket::readyRead, this, &Consumer::readBlock);
+    //connect(m_socket, &QTcpSocket::disconnected, this, &Consumer::disconnected);
 
-    if (m_socket->state() == QTcpSocket::ConnectedState) {
-        std::cout << "Connected on socket " << m_socket->socketDescriptor() << std::endl;
-    }
+    //const int timeout = 5 * 1000;
+    //if (!m_socket->waitForConnected(timeout)) {
+    //    emit error(m_socket->error());
+    //    return;
+    //}
+
+    //if (m_socket->state() == QTcpSocket::ConnectedState) {
+    //    std::cout << "Connected on socket " << m_socket->socketDescriptor() << std::endl;
+    //    connectedToHost = true;
+    //}
 }
 
 Consumer::~Consumer()
@@ -34,25 +39,85 @@ Consumer::~Consumer()
 void Consumer::init()
 {
     std::cout << "Consumer::init()" << std::endl;
+    m_socket = new QTcpSocket(this);
+
+    connect(m_socket, &QTcpSocket::disconnected, this, &Consumer::disconnected);
+
+    connect(this, &Consumer::error, this, &Consumer::catchSocketError);
+
+    //m_socket->setReadBufferSize(600);
+    m_socket->setSocketOption(QAbstractSocket::KeepAliveOption, 1);
+    m_socket->connectToHost(m_ipAddress, m_port, QIODevice::ReadOnly);
+    //connect(m_socket, &QTcpSocket::stateChanged, this, &Consumer::socketChanged);
+    connect(m_socket, &QTcpSocket::readyRead, this, &Consumer::readBlock);
+
+    const int timeout = 5 * 1000;
+    if (!m_socket->waitForConnected(timeout)) {
+        emit error(m_socket->error());
+        return;
+    }
+
+    if (m_socket->state() == QTcpSocket::ConnectedState) {
+        std::cout << "Connected on socket " << m_socket->socketDescriptor() << std::endl;
+        connectedToHost = true;
+    }
     m_writer = new FileWriterThread(m_id, frameBuffer, this);
-    m_writer->start();
-    m_socket->waitForReadyRead(-1);
+    m_writer->start(QThread::LowPriority);
+    m_socket->waitForReadyRead(10000);
+    
+    /*QDataStream in(m_socket);
+    in.setVersion(QDataStreamVersion);
+    
+    while (connectedToHost) {
+
+        if (!m_socket->waitForReadyRead(timeout)) {
+            std::cout << "Got no data" << std::endl;
+            emit error(m_socket->error());
+            continue;
+        }
+        
+
+        std::cout << "Got data!" << std::endl;
+        //    
+        QByteArray block;
+
+        in >> block;
+
+        frameBuffer->push_back(block);
+    }*/
 }
 
 void Consumer::readBlock()
 {
      std::cout << "Got readyRead! signal from socket, bytes available = " << m_socket->bytesAvailable() << std::endl;
-     //QDataStream in(m_socket);
-     //in.setVersion(QDataStreamVersion);
+     QDataStream in(m_socket);
+     in.setVersion(QDataStreamVersion);
 
      //std::cout << "Got readyRead! signal from socket, bytes available = " << m_socket->bytesAvailable() << std::endl;
 
-     //QByteArray block;
-     QByteArray block = m_socket->readAll();
+     QByteArray block;
+     //QByteArray block = m_socket->readAll();
 
-     //in >> block;
+     in >> block;
 
      frameBuffer->push_back(block);
+}
+
+void Consumer::socketChanged()
+{
+    std::cout << "Socket Changed! State = " << m_socket->state() << std::endl;
+}
+
+void Consumer::disconnected()
+{
+    std::cout << "Consumer::disconnected()!" << std::endl;
+    connectedToHost = false;
+}
+
+void Consumer::catchSocketError()
+{
+    QString errorString = m_socket->errorString();
+    std::cout << "Socket Error: " << errorString.toUtf8().constData() << std::endl;
 }
 
 void Consumer::run()
@@ -61,24 +126,23 @@ void Consumer::run()
     in.setVersion(QDataStreamVersion);
 
     const int timeout = 5 * 1000;
-    std::cout << " Entering infinite loop" << std::endl;
-    while (true) {
+    while (connectedToHost) {
 
-        if (m_socket->state() == QTcpSocket::ConnectedState) {
-            std::cout << "Connected on socket " << m_socket->socketDescriptor() << std::endl;
-        }
         if (!m_socket->waitForReadyRead(timeout)) {
-        std::cout << "Got no data" << std::endl;
+            std::cout << "Got no data" << std::endl;
             continue;
         }
+        
 
         std::cout << "Got data!" << std::endl;
-            
+        //    
         QByteArray block;
 
         in >> block;
 
         frameBuffer->push_back(block);
     }
+
+    return;
 }
 

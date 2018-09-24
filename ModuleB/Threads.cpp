@@ -4,6 +4,7 @@
 FileWriterThread::FileWriterThread(const std::string consumerId, std::shared_ptr<ThreadSafeQueue<QByteArray>> buffer, QObject *parent)
     : QThread(parent), m_id(consumerId)
 {
+    std::cout << "FileWriterThread()" << std::endl;
     frameBuffer = buffer;
 
     std::string fileName = "./data/com_mod_output_" + m_id + ".bin";
@@ -17,10 +18,10 @@ FileWriterThread::~FileWriterThread()
 
 void FileWriterThread::processNextBlock()
 {
-    std::cout << "FileWriter::processNextBlock()" << std::endl;
     if(frameBuffer->size() == 0)
         return;
 
+    std::cout << "FileWriter::processNextBlock()" << std::endl;
 
     QByteArray block = frameBuffer->pop_front();
 
