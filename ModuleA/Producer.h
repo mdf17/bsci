@@ -5,6 +5,8 @@
 #include <fstream>
 
 #include <QtCore/QtGlobal>
+#include <QtNetwork/QTcpServer>
+#include <QtNetwork/QNetworkSession>
 
 #include "Threads.h"
 
@@ -14,7 +16,9 @@ class RateController : public QObject
     Q_OBJECT
 
   public:
-    explicit RateController(QObject *parent = NULL);
+    inline RateController() { }
+
+    static RateController *instance();
 
     void run();
 
@@ -23,6 +27,8 @@ class RateController : public QObject
     hrclock::time_point m_startTime;
 };
 
+class QTcpServer;
+class QNetworkSession;
 
 // read binary input file
 //
@@ -31,7 +37,7 @@ class RateController : public QObject
 // Enqueue the data with a timestamp
 //
 // manage TCP connections
-class Producer : public QObject
+class Producer : public QTcpServer
 {
     Q_OBJECT
 
@@ -42,44 +48,40 @@ class Producer : public QObject
 
     ~Producer();
 
-    void init() { 
-        std::cout << "Producer::init()" << std::endl; 
-        m_server->start();
-        connectToDataStream("com_mod_input.bin"); 
-        m_rateController->run();
-    }
+    void init();
 
     // Make public because this will be shared by ComputeThread
-    std::shared_ptr<ThreadSafeQueue<FrameT>> m_dataQueue;
+    std::shared_ptr<ThreadSafeQueue<FrameT>> m_inputDataQueue;
+    std::shared_ptr<ThreadSafeQueue<ChecksumT>> m_outputDataQueue;
 
-    bool connectToDataStream(const std::string& inputFile);
+    //bool connectToDataStream(const std::string& inputFile);
 
-    void readPacket(const double& timestamp);
+    //void readPacket(const double& timestamp);
 
   signals:
     void disconnect();
     void quit();
-    //void checksumReady(ChecksumT checksum);
 
   public slots:
-    //void forwardChecksumReady(ChecksumT checksum);
-    void sessionOpened();
+
+  protected:
+    void incomingConnection(qintptr socketDescriptor) override;
 
   private:
 
-    //QTcpServer *m_tcpServer = nullptr;
-    QNetworkSession *m_networkSession = nullptr;
-
     // Thread pool for each open TCP connection
     //QList<TcpWriterThread *> m_writers;
+
+    // File reader thread
+    FileReaderThread *m_reader = nullptr; 
 
     // Single thread to offload parsing of packets into header+data
     ComputeThread *m_parser = nullptr;
 
     // Enforces constant datastream read rate
-    RateController *m_rateController;
+    //RateController *m_rateController;
 
-    ServerThread *m_server = nullptr;
+    //ServerThread *m_server = nullptr;
 
     unsigned int m_frameNumber;     // frame counter
     double m_frameTime;             // timestamp (s)

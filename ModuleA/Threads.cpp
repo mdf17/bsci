@@ -1,12 +1,83 @@
+#include <iomanip>
+
 #include "Threads.h"
 
+FileReaderThread::FileReaderThread(std::shared_ptr<ThreadSafeQueue<FrameT>> dataQueue, QObject *parent) : QThread(parent),
+    m_frameNumber(-1),
+    m_frameTime(0.),
+    m_frameRate(FRAME_RATE),
+    m_streamSize(0),
+    m_bytesRead(0),
+    m_frameSize(FRAME_SIZE),
+    m_numFrames(0),
+    m_packet()
+{
+    m_dataQueue = dataQueue;
+}
 
-ComputeThread::ComputeThread(unsigned int numFrames, std::shared_ptr<ThreadSafeQueue<FrameT>> dataQueue, QObject *parent) : QThread(parent), m_numFrames(numFrames), m_data(NUM_CHANNELS), m_checksum()
+
+bool FileReaderThread::connectToDataStream(const std::string& inputFile)
+{
+    std::cout << "FileReaderThread::connectToDataStream()" << std::endl;
+    std::ifstream in(inputFile, std::ifstream::ate | std::ifstream::binary);
+    m_streamSize = in.tellg(); 
+    m_numFrames = m_streamSize / m_frameSize;
+    in.close();
+
+    m_dataStream.open(inputFile.c_str(), std::ios::in | std::ios::binary);
+
+    return m_dataStream.is_open();
+}
+
+void FileReaderThread::run() 
+{
+    using Timestep = READ_RATE;
+    std::chrono::duration<double> timestamp;
+    m_startTime = hrclock::now();
+    hrclock::time_point next = m_startTime + Timestep{1};
+    while(true) {
+        timestamp = hrclock::now() - m_startTime;
+        readPacket(timestamp.count());
+        while (hrclock::now() < next)
+            ;
+        next += Timestep{1};
+    }
+}
+
+// timestamp passed down from event loop
+void FileReaderThread::readPacket(const double& timestamp)
+{
+    unsigned int pos = m_bytesRead % m_streamSize;
+    //std::cout << "FileReader::readPacket(" << std::setprecision(10) << timestamp << ")" << std::endl;
+    // streampos pointer wraps around to beginning of file
+    //std::cout << "Stream Size = " << m_streamSize << ", bytes read = " << m_bytesRead << std::endl;
+    m_dataStream.seekg(pos); 
+    //std::cout << "seekg = " << pos << std::endl;
+    // read a frame
+    m_dataStream.read(m_packet.data(), m_frameSize);
+    //std::cout << "read " << m_frameSize << " bytes." << std::endl;
+    // timestamp the data
+    m_dataQueue->push_back(FrameT(m_packet, timestamp));
+
+    //std::cout << "push " << m_dataQueue->size() << std::endl;
+    //std::cout << "push frame to queue" << std::endl;
+    m_bytesRead += m_frameSize;
+    m_frameNumber++;
+    //std::cout << "done" << std::endl;
+}
+
+
+ComputeThread::ComputeThread(unsigned int numFrames, 
+        std::shared_ptr<ThreadSafeQueue<FrameT>> inputDataQueue, 
+        std::shared_ptr<ThreadSafeQueue<ChecksumT>> outputDataQueue, 
+        QObject *parent) 
+    : QThread(parent), m_numFrames(numFrames), m_data(NUM_CHANNELS)
 {
     m_frameNumber = -1;
 
     m_framesPerBlock = FRAMES_PER_BLOCK;
-    m_dataQueue = dataQueue;
+    m_inputDataQueue = inputDataQueue;
+    m_outputDataQueue = outputDataQueue;
 }
 
 unsigned int ComputeThread::computeChecksum(unsigned int data)
@@ -19,17 +90,16 @@ unsigned int ComputeThread::computeChecksum(unsigned int data)
 
 void ComputeThread::parseFrame()
 {
-    //m_rawFrames.clear();
     ChecksumT checksum;
 
     //std::cout << "ComputeThread::parseFrame()" << std::endl;
-    if(m_dataQueue->empty())
+    if(m_inputDataQueue->empty())
         return;
 
     //std::cout << "ComputeThread::parseFrame()" << std::endl;
     //for (int i = 0; i < m_framesPerBlock; ++i) {
-        FrameT frame = m_dataQueue->pop_front();
-        //std::cout << "pop " << m_dataQueue->size() << std::endl;
+        FrameT frame = m_inputDataQueue->pop_front();
+        //std::cout << "pop " << m_inputDataQueue->size() << std::endl;
         m_rawFrames.push_back(frame);
     //}
 
@@ -55,7 +125,7 @@ void ComputeThread::parseFrame()
 
             checksum.timestamp = frame.frameTime;
 
-            //std::cout << "HEADER " << frameNumber << " sum = " << m_checksum.sum << std::endl;
+            //std::cout << "HEADER " << frameNumber << " sum = " << checksum.sum << std::endl;
 
             // wrap around to beginning
             if (frameNumber == m_numFrames-1) {
@@ -64,33 +134,23 @@ void ComputeThread::parseFrame()
         }
         // clear internal framebuffer
         m_rawFrames.clear();
-        // publish the checksum to the writer threads
-        std::cout << "ComputeThread::checksumReady!" << std::endl;
-        qRegisterMetaType<ChecksumT>("ChecksumT");
-        emit checksumReady(checksum);
+        m_outputDataQueue->push_back(checksum);
     }
 }
 
 void ComputeThread::run() 
 {
     std::cout << "ComputeThread::run()" << std::endl;
-    //using Timestep = READ_RATE;
-    //m_startTime = hrclock::now();
-    //hrclock::time_point next = m_startTime + Timestep{1};
     while (true) {
         parseFrame();
-        //while (hrclock::now() < next)
-        //    ;
-        //next += Timestep{1};
     }
-    //exec();
 }
 
 
-TcpWriterThread::TcpWriterThread(qintptr socketDescriptor, QObject *parent) : QThread(parent), m_socketDescriptor(socketDescriptor)
+TcpWriterThread::TcpWriterThread(qintptr socketDescriptor, SharedQueue<ChecksumT> dataQueue, QObject *parent) : QThread(parent), m_socketDescriptor(socketDescriptor)
 {
     std::cout << "TcpWriterThread()" << std::endl;
-    //m_socket = new QTcpSocket;
+    m_dataQueue = dataQueue;
 }
 
 TcpWriterThread::~TcpWriterThread()
@@ -98,116 +158,36 @@ TcpWriterThread::~TcpWriterThread()
     std::cout << "~TcpWriterThread()" << std::endl;
 }
 
-
 void TcpWriterThread::run()
 {
-    m_socket = new QTcpSocket;
-
     std::cout << "TcpWriterThread::run()" << std::endl;
 
-    if (!m_socket->setSocketDescriptor(m_socketDescriptor)) {
-        std::cout << "Error opening socket!" << std::endl;
+    QTcpSocket socket;
+
+    if (!socket.setSocketDescriptor(m_socketDescriptor)) {
+        emit error(socket.error());
         return;
     }
 
-    qRegisterMetaType<ChecksumT>("ChecksumT");
+    // TODO: Replace with a FSM state change
+    while (true) {
+        if (m_dataQueue->empty())
+            continue;
 
-    /*QTcpSocket socket;*/
-
-    //if (!m_socket.setSocketDescriptor(m_socketDescriptor)) {
-    //    emit error(m_socket.error());
-    //    return;
-    //}
-        
-    // make this thread a loop, stay alive
-    exec();
-}
-
-void TcpWriterThread::disconnect()
-{
-    m_socket->disconnectFromHost();
-    m_socket->waitForDisconnected();
-}
-
-void TcpWriterThread::publishChecksum(ChecksumT checksum)
-{
-    ChecksumT copy = checksum;
-    std::cout << "TcpWriterThread: Received publishChecksum signal" << std::endl;
-    QByteArray block;
-    QDataStream out(&block, QIODevice::WriteOnly);
-    out.setVersion(QDataStreamVersion);
-    std::cout << "writing to data stream. sum = " << copy.sum << ", time = " << copy.timestamp << std::endl;
-    out << copy.sum;
-    out << copy.timestamp;
-    std::cout << "done" << std::endl;
-    if (!m_socket->write(block))
-        std::cout << "Failed to write output" << std::endl;
-    std::cout << "Returning!" << std::endl;
-}
-
-
-ServerThread::ServerThread(QObject *parent) : QThread(parent)
-{
-    //qDebug() << qobject_cast<QObject *>(this);
-    //m_tcpServer = new Server(this);
-}
-
-ServerThread::~ServerThread()
-{
-    //m_tcpServer->close();
-}
-
-void ServerThread::checksumReady(ChecksumT checksum)
-{
-    std::cout << "ServerThread: Received checksumReady signal" << std::endl;
-    ChecksumT copy = checksum;
-    qRegisterMetaType<ChecksumT>("ChecksumT");
-    emit publishChecksum(copy); 
-}
-
-void ServerThread::run()
-{
-    std::cout << "ServerThread::run()" << std::endl;
-
-    Server *server = Server::instance();
-    connect(this, SIGNAL(publishChecksum(ChecksumT)), server, SLOT(publishChecksum(ChecksumT)), Qt::DirectConnection);
-    //connect(this, SIGNAL(publishChecksum(ChecksumT)), server, SLOT(publishChecksum(ChecksumT)), Qt::QueuedConnection);
-    connect(this, &ServerThread::wakeServer, server, &Server::heartbeat);
-
-    //if (!m_tcpServer->listen()) {
-    if (!server->listen()) {
-        std::cout << "Unable to start the server." << std::endl;
-        return;
-    }
-    QString ipAddress;
-    QList<QHostAddress> ipAddressesList = QNetworkInterface::allAddresses();
-    // use the first non-localhost IPv4 address
-    for (int i = 0; i < ipAddressesList.size(); ++i) {
-        if (ipAddressesList.at(i) != QHostAddress::LocalHost &&
-            ipAddressesList.at(i).toIPv4Address()) {
-            ipAddress = ipAddressesList.at(i).toString();
-            break;
+        ChecksumT checksum = m_dataQueue->pop_front();
+        std::cout << "TcpWriterThread: Got ChecksumT from queue" << std::endl;
+        QByteArray block;
+        QDataStream out(&block, QIODevice::WriteOnly);
+        out.setVersion(QDataStreamVersion);
+        for (int i = 0; i < 50; i++) {
+            out << checksum.sum;
+            out << checksum.timestamp;
         }
+        int nBytes = socket.write(block);
+        if (nBytes == 0)
+            std::cout << "Failed to write output" << std::endl;
+        std::cout << "Wrote " << nBytes << " bytes to socket" << std::endl;
     }
- 
-    // if we did not find one, use IPv4 localhost
-    if (ipAddress.isEmpty())
-        ipAddress = QHostAddress(QHostAddress::LocalHost).toString();
- 
-    //QString ipAddress = m_tcpServer->serverAddress().toString();
-    //QString ipAddress = server.serverAddress().toString();
-    std::string ipAddressUtf8 = ipAddress.toUtf8().constData();
-    std::cout << "The server is running on IP: " << ipAddressUtf8 << " port: " << server->serverPort() << std::endl;
-
-
-    while(true) {
-
-        //;
-        //struct timespec ts = { 1, 0 };
-        //nanosleep(&ts, NULL);
-        //emit wakeServer();
-        server->waitForNewConnection(-1);
-    }
-    
-    //exec(); 
 }
+
+ 

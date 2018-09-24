@@ -4,6 +4,7 @@
 #include <array>
 #include <iostream>
 #include <chrono>
+#include <memory>
 
 #include <QtCore/QQueue>
 #include <QtCore/QMetaType>
@@ -21,6 +22,8 @@ const unsigned int  FRAME_SIZE       = HEADER_SIZE + SAMPLE_SIZE*NUM_CHANNELS;
 const unsigned int  BYTE             = 8;
 const unsigned int  BIT              = 1;
 const unsigned int  MAX_QUEUE_SIZE   = 2000;
+const unsigned int  MAX_INPUT_QUEUE_SIZE   = MAX_QUEUE_SIZE;
+const unsigned int  MAX_OUTPUT_QUEUE_SIZE   = MAX_QUEUE_SIZE;
 const unsigned int  TCP_PACKET_SIZE  = 512;
 const unsigned int  FRAMES_PER_BLOCK = TCP_PACKET_SIZE / FRAME_SIZE; 
 
@@ -117,5 +120,9 @@ class ThreadSafeQueue
     unsigned int m_queueBudget;
     unsigned int m_size;
 };
+
+template<typename T> 
+using SharedQueue = std::shared_ptr<ThreadSafeQueue<T>>;
+
 
 #endif

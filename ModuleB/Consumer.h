@@ -32,6 +32,9 @@ class Consumer : public QObject
     void disconnect();
     void quit();
 
+  public slots:
+    void readBlock();
+
   private:
     std::string m_id;
 

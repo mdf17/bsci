@@ -17,10 +17,10 @@ FileWriterThread::~FileWriterThread()
 
 void FileWriterThread::processNextBlock()
 {
+    std::cout << "FileWriter::processNextBlock()" << std::endl;
     if(frameBuffer->size() == 0)
         return;
 
-    std::cout << "FileWriter::processNextBlock()" << std::endl;
 
     QByteArray block = frameBuffer->pop_front();
 

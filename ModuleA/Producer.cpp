@@ -22,37 +22,11 @@ Producer::Producer()
     m_numFrames(0)
 {
     std::cout << "Producer()" << std::endl;
-    m_dataQueue.reset(new ThreadSafeQueue<FrameT>(MAX_QUEUE_SIZE));
+    m_inputDataQueue.reset(new ThreadSafeQueue<FrameT>(MAX_INPUT_QUEUE_SIZE));
+    m_outputDataQueue.reset(new ThreadSafeQueue<ChecksumT>(MAX_OUTPUT_QUEUE_SIZE));
 
-    //QNetworkConfigurationManager manager;
-    //if (manager.capabilities() & QNetworkConfigurationManager::NetworkSessionRequired) {
-    //    // Get saved network configuration
-    //    QSettings settings(QSettings::UserScope, QLatin1String("QtProject"));
-    //    settings.beginGroup(QLatin1String("QtNetwork"));
-    //    const QString id = settings.value(QLatin1String("DefaultNetworkConfiguration")).toString();
-    //    settings.endGroup();
-
-    //    // If the saved network configuration is not currently discovered use the system default
-    //    QNetworkConfiguration config = manager.configurationFromIdentifier(id);
-    //    if ((config.state() & QNetworkConfiguration::Discovered) !=
-    //        QNetworkConfiguration::Discovered) {
-    //        config = manager.defaultConfiguration();
-    //    }
-
-    //    m_networkSession = new QNetworkSession(config, this);
-    //    connect(m_networkSession, &QNetworkSession::opened, this, &Producer::sessionOpened);
-
-    //    std::cout << "Opening network session." << std::endl;
-    //    m_networkSession->open();
-    //} else {
-    //    sessionOpened();
-    //} 
-
-    m_server = new ServerThread(this->thread());
-
-    //connect(this, SIGNAL(checksumReady(ChecksumT)), m_server, SLOT(checksumReady(ChecksumT)), Qt::DirectConnection);
-
-    m_rateController = new RateController;
+    m_reader = new FileReaderThread(m_inputDataQueue, this);
+    connect(this, &Producer::quit, m_reader, &FileReaderThread::deleteLater);
 }
 
 Producer * Producer::instance()
@@ -70,96 +44,55 @@ Producer::~Producer()
 
     // Tell child threads to die
     emit quit();
-
-    delete m_rateController;
 }
 
-bool Producer::connectToDataStream(const std::string& inputFile)
+void Producer::init()
 {
-    std::cout << "Producer::connectToDataStream()" << std::endl;
-    std::ifstream in(inputFile, std::ifstream::ate | std::ifstream::binary);
-    m_streamSize = in.tellg(); 
-    m_numFrames = m_streamSize / m_frameSize;
-    in.close();
+    std::cout << "Producer::init()" << std::endl; 
 
-    m_dataStream.open(inputFile.c_str(), std::ios::in | std::ios::binary);
+    // Attempt to start the server
+    if (!listen()) {
+        std::cout << "Unable to start the server." << std::endl;
+        return;
+    }
 
-    m_parser = new ComputeThread(m_numFrames, m_dataQueue, this);
-    //connect(m_parser, &ComputeThread::checksumReady, this, &Producer::forwardChecksumReady, Qt::DirectConnection);
-    connect(m_parser, SIGNAL(checksumReady(ChecksumT)), m_server, SLOT(checksumReady(ChecksumT)), Qt::DirectConnection);
-    //connect(m_parser, SIGNAL(checksumReady(ChecksumT)), m_server, SLOT(checksumReady(ChecksumT)));
-    connect(this, &Producer::quit, m_parser, &ComputeThread::deleteLater);
+    QString ipAddress;
+    QList<QHostAddress> ipAddressesList = QNetworkInterface::allAddresses();
+    // use the first non-localhost IPv4 address
+    for (int i = 0; i < ipAddressesList.size(); ++i) {
+        if (ipAddressesList.at(i) != QHostAddress::LocalHost &&
+            ipAddressesList.at(i).toIPv4Address()) {
+            ipAddress = ipAddressesList.at(i).toString();
+            break;
+        }
+    }
 
+    // if we did not find one, use IPv4 localhost
+    if (ipAddress.isEmpty())
+        ipAddress = QHostAddress(QHostAddress::LocalHost).toString();
+
+    std::string ipAddressUtf8 = ipAddress.toUtf8().constData();
+    std::cout << "The server is running on IP: " << ipAddressUtf8 << " " << serverPort() << std::endl;
+
+    // Start the File Reader
+    if (m_reader->connectToDataStream("com_mod_input.bin")) {
+        m_parser = new ComputeThread(m_numFrames, m_inputDataQueue, m_outputDataQueue, this);
+        connect(this, &Producer::quit, m_parser, &ComputeThread::deleteLater);
+    }
     m_parser->start();
+    m_reader->start();
 
-    return m_dataStream.is_open();
+    // Start accepting new connections
+    while (true) {
+        waitForNewConnection(-1);
+    }
 }
 
-void Producer::sessionOpened()
+void Producer::incomingConnection(qintptr socketDescriptor)
 {
-    //std::cout << "Producer::sessionOpened()" << std::endl;
-    //// Save the used configuration
-    //if (m_networkSession) {
-    //    QNetworkConfiguration config = m_networkSession->configuration();
-    //    QString id;
-    //    if (config.type() == QNetworkConfiguration::UserChoice)
-    //        id = m_networkSession->sessionProperty(QLatin1String("UserChoiceConfiguration")).toString();
-    //    else
-    //        id = config.identifier();
-    //    
-    //    QSettings settings(QSettings::UserScope, QLatin1String("QtProject"));
-    //    settings.beginGroup(QLatin1String("QtNetwork"));
-    //    settings.setValue(QLatin1String("DefaultNetworkConfiguration"), id);
-    //    settings.endGroup();
-    //}
-
-    //if (!listen()) {
-    //    std::cout << "Unable to start the server: " << std::endl;
-    //    return;
-    //}
-
-    //QString ipAddress;
-    //QList<QHostAddress> ipAddressesList = QNetworkInterface::allAddresses();
-    //// use the first non-localhost IPv4 address
-    //for (int i = 0; i < ipAddressesList.size(); ++i) {
-    //    if (ipAddressesList.at(i) != QHostAddress::LocalHost && ipAddressesList.at(i).toIPv4Address()) {
-    //        ipAddress = ipAddressesList.at(i).toString();
-    //        std::cout << "IP Address is not localhost!" << std::endl;
-    //        break;
-    //    }
-    //}
-
-    //if (ipAddress.isEmpty())
-    //        ipAddress = QHostAddress(QHostAddress::LocalHost).toString();
-
-    //std::string ipAddressUtf8 = ipAddress.toUtf8().constData();
-    //std::cout << "The server is running on IP " << ipAddressUtf8 << " port " << serverPort() << std::endl;
-
-    //if (isListening())
-    //    std::cout << "The server is listening..." << std::endl;
-
-    //std::cout << "Max pending connections: " << maxPendingConnections() << std::endl;
-}
-
-// timestamp passed down from event loop
-void Producer::readPacket(const double& timestamp)
-{
-    unsigned int pos = m_bytesRead % m_streamSize;
-    //std::cout << "Producer::readPacket(" << std::setprecision(10) << timestamp << ")" << std::endl;
-    // streampos pointer wraps around to beginning of file
-    //std::cout << "Stream Size = " << m_streamSize << ", bytes read = " << m_bytesRead << std::endl;
-    m_dataStream.seekg(pos); 
-    //std::cout << "seekg = " << pos << std::endl;
-    // read a frame
-    m_dataStream.read(m_packet.data(), m_frameSize);
-    //std::cout << "read " << m_frameSize << " bytes." << std::endl;
-    // timestamp the data
-    m_dataQueue->push_back(FrameT(m_packet, timestamp));
-
-    //std::cout << "push " << m_dataQueue->size() << std::endl;
-    //std::cout << "push frame to queue" << std::endl;
-    m_bytesRead += m_frameSize;
-    m_frameNumber++;
-    //std::cout << "done" << std::endl;
+    std::cout << "Incoming connection on " << socketDescriptor << " !" << std::endl;
+    TcpWriterThread *t = new TcpWriterThread(socketDescriptor, m_outputDataQueue, this);
+    connect(this, &Producer::quit, t, &TcpWriterThread::deleteLater);
+    t->start();
 }
 

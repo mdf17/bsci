@@ -11,7 +11,37 @@
 #include <QtNetwork/QTcpSocket>
 
 
-#include "Server.h"
+#include "Common.h"
+
+class FileReaderThread : public QThread
+{
+    Q_OBJECT
+
+  public:
+    FileReaderThread(SharedQueue<FrameT> dataQueue, QObject *parent = NULL);
+
+    bool connectToDataStream(const std::string& inputFile);
+    void readPacket(const double& timestamp);
+
+    void run() override;
+
+    SharedQueue<FrameT> m_dataQueue;
+    
+  private:
+    unsigned int m_frameNumber;     // frame counter
+    double m_frameTime;             // timestamp (s)
+    double m_frameRate;             // Hz
+
+    hrclock::time_point m_startTime;
+
+    // File I/O Members
+    std::ifstream m_dataStream;     // file (data) stream
+    unsigned int m_streamSize;      // total size of file, in bytes
+    unsigned int m_bytesRead;       // number of bytes read so far
+    unsigned int m_frameSize;       // size of input packet in bytes
+    unsigned int m_numFrames;       // number of frames  = stream size / frame size
+    PacketT m_packet;
+};
 
 
 
@@ -29,14 +59,15 @@ class ComputeThread : public QThread
     Q_OBJECT
   
   public:
-    ComputeThread(unsigned int numFrames, std::shared_ptr<ThreadSafeQueue<FrameT>> dataQueue, QObject *parent = NULL);
+    ComputeThread(unsigned int numFrames, SharedQueue<FrameT> inputDataQueue, SharedQueue<ChecksumT> outputDataQueue, QObject *parent = NULL);
 
     void parseFrame();
     unsigned int computeChecksum(unsigned int data);
 
     void run() override;
 
-    std::shared_ptr<ThreadSafeQueue<FrameT>> m_dataQueue;
+    SharedQueue<FrameT> m_inputDataQueue;
+    SharedQueue<ChecksumT> m_outputDataQueue;
 
   protected:
 
@@ -62,8 +93,6 @@ class ComputeThread : public QThread
     int m_framesPerBlock;
     std::vector<FrameT> m_rawFrames;
     std::vector<unsigned int> m_data;           // 8 channels of sample data
-
-    ChecksumT m_checksum;
 };
 
 
@@ -83,46 +112,18 @@ class TcpWriterThread : public QThread
     Q_OBJECT
 
   public:
-    TcpWriterThread(qintptr socketDescriptor, QObject *parent);
+    TcpWriterThread(qintptr socketDescriptor, SharedQueue<ChecksumT> dataQueue, QObject *parent);
     ~TcpWriterThread();
 
     void run() override;
 
-    //void setSocket(QTcpSocket * socket);
+    SharedQueue<ChecksumT> m_dataQueue;
 
   signals:
     void error(QTcpSocket::SocketError socketError);
 
-  public slots:
-    void publishChecksum(ChecksumT checksum);
-    void disconnect();
-  
   private:
-    QTcpSocket *m_socket;
     int m_socketDescriptor;
-};
-
-class ServerThread : public QThread
-{
-    Q_OBJECT
-
-  public:
-    ServerThread(QObject *parent = 0);
-    ~ServerThread();
-
-    void run() override;
-
-
-  public slots:
-    void checksumReady(ChecksumT checksum);
-
-  signals:
-    void publishChecksum(ChecksumT checksum);
-    void wakeServer();
-
-  private:
-    Server *m_tcpServer;
-
 };
 
 
