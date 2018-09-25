@@ -117,6 +117,8 @@ class TcpWriterThread : public QThread
 
     void run() override;
 
+    void write();
+
     SharedQueue<ChecksumT> m_dataQueue;
 
   signals:
@@ -124,9 +126,11 @@ class TcpWriterThread : public QThread
 
   public slots:
     void disconnected();
+    void readyRead();
 
   private:
     int m_socketDescriptor;
+    QTcpSocket * m_socket;
     bool connected;
 };
 

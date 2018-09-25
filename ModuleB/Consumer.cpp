@@ -30,6 +30,10 @@ Consumer::Consumer(const std::string id, const QHostAddress ipAddress, const qui
 
 Consumer::~Consumer()
 {
+}
+
+void Consumer::quit()
+{
     m_socket->disconnectFromHost();
     m_socket->waitForDisconnected();
     m_socket->deleteLater();
@@ -47,7 +51,7 @@ void Consumer::init()
 
     //m_socket->setReadBufferSize(600);
     m_socket->setSocketOption(QAbstractSocket::KeepAliveOption, 1);
-    m_socket->connectToHost(m_ipAddress, m_port, QIODevice::ReadOnly);
+    m_socket->connectToHost(m_ipAddress, m_port, QIODevice::ReadWrite);
     //connect(m_socket, &QTcpSocket::stateChanged, this, &Consumer::socketChanged);
     connect(m_socket, &QTcpSocket::readyRead, this, &Consumer::readBlock);
 
@@ -72,6 +76,12 @@ void Consumer::init()
     
     if (m_socket->bytesAvailable() > 0)
         std::cout << "Socket has data to read!" << std::endl;
+
+    QString hello("HELLO");
+
+    QByteArray out = hello.toLatin1();
+    m_socket->write(out);
+
     /*QDataStream in(m_socket);
     in.setVersion(QDataStreamVersion);
     
