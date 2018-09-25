@@ -16,5 +16,5 @@ SOURCES += main.cpp Threads.cpp Producer.cpp
 INCLUDE_PATH += /usr/include/qt5
 
 # install
-target.path = .
+target.path = ../bin
 INSTALLS += target

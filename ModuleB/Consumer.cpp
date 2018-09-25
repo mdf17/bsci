@@ -59,12 +59,19 @@ void Consumer::init()
 
     if (m_socket->state() == QTcpSocket::ConnectedState) {
         std::cout << "Connected on socket " << m_socket->socketDescriptor() << std::endl;
+        std::cout << "TcpWriterThread: Socket Address: " << to_string(m_socket->peerAddress().toString()) << std::endl;
+        std::cout << "TcpWriterThread: Socket Name: " << to_string(m_socket->peerName()) << std::endl;
+        std::cout << "TcpWriterThread: Socket Port: " << m_socket->peerPort() << std::endl;
         connectedToHost = true;
     }
     m_writer = new FileWriterThread(m_id, frameBuffer, this);
     m_writer->start(QThread::LowPriority);
-    m_socket->waitForReadyRead(10000);
+    //if(m_socket->waitForReadyRead(10000)) {
+        
+    //}
     
+    if (m_socket->bytesAvailable() > 0)
+        std::cout << "Socket has data to read!" << std::endl;
     /*QDataStream in(m_socket);
     in.setVersion(QDataStreamVersion);
     
@@ -128,8 +135,8 @@ void Consumer::run()
     const int timeout = 5 * 1000;
     while (connectedToHost) {
 
-        if (!m_socket->waitForReadyRead(timeout)) {
-            std::cout << "Got no data" << std::endl;
+        if (!m_socket->bytesAvailable()) {
+            //std::cout << "Got no data" << std::endl;
             continue;
         }
         

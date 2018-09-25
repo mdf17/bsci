@@ -11,6 +11,7 @@
 #include <QtCore/QDataStream>
 #include <QtCore/QMutex>
 #include <QtCore/QDebug>
+#include <QtCore/QString>
 
 //const unsigned int  FRAME_RATE      = 64000;
 const unsigned int  FRAME_RATE       = 1; //64000;
@@ -59,6 +60,10 @@ static inline void toNetworkData(quint32 num, char *data)
     udata[0] = (num & 0xff000000) >> 24;
 }
 
+inline std::string to_string(QString qstr)
+{
+    return qstr.toUtf8().constData();
+}
 
 
 struct FrameT {

@@ -2,6 +2,7 @@ QT += core network widgets
 # requires(qtConfig(filedialog))
 
 CONFIG += c++11
+CONFIG += debug
 
 TARGET = ModuleB
 
@@ -14,5 +15,5 @@ SOURCES += main.cpp Threads.cpp Consumer.cpp
 INCLUDE_PATH += /usr/include/qt5
 
 # install
-target.path = .
+target.path = ../bin
 INSTALLS += target

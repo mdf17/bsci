@@ -51,12 +51,12 @@ void Producer::init()
     std::cout << "Producer::init()" << std::endl; 
 
     // Attempt to start the server
-    if (!listen(QHostAddress("127.0.0.1"), 39333)) {
+    if (!listen()) {
         std::cout << "Unable to start the server." << std::endl;
         return;
     }
 
-    /*QString ipAddress;
+    QString ipAddress;
     QList<QHostAddress> ipAddressesList = QNetworkInterface::allAddresses();
     // use the first non-localhost IPv4 address
     for (int i = 0; i < ipAddressesList.size(); ++i) {
@@ -70,7 +70,7 @@ void Producer::init()
     // if we did not find one, use IPv4 localhost
     if (ipAddress.isEmpty())
         ipAddress = QHostAddress(QHostAddress::LocalHost).toString();
-    */
+    
 
     //std::string ipAddressUtf8 = ipAddress.toUtf8().constData();
     std::cout << "The server is running on IP: " << serverAddress().toString().toUtf8().constData() << " " << serverPort() << std::endl;
@@ -86,7 +86,6 @@ void Producer::init()
     // Start accepting new connections
     while (true) {
         waitForNewConnection(10000);
-        std::cout << "Producer: server has " << 
         //if (hasPendingConnections()) {
         //    std::cout << "Producer: server has pending connections!" << std::endl; 
         //} else {

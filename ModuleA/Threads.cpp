@@ -1,4 +1,5 @@
 #include <iomanip>
+#include <QtNetwork/QHostAddress>
 
 #include "Threads.h"
 
@@ -188,11 +189,14 @@ void TcpWriterThread::run()
         }
 
         std::cout << "TcpWriterThread: Connected to socket " << socket.socketDescriptor() << std::endl;
+        std::cout << "TcpWriterThread: Socket Address: " << to_string(socket.peerAddress().toString()) << std::endl;
+        std::cout << "TcpWriterThread: Socket Name: " << to_string(socket.peerName()) << std::endl;
+        std::cout << "TcpWriterThread: Socket Port: " << socket.peerPort() << std::endl;
 
         int nBytes = socket.write(block);
         if (nBytes == 0)
             std::cout << "Failed to write output" << std::endl;
-        //socket.flush();
+        socket.flush();
         std::cout << "Wrote " << nBytes << " bytes to socket" << std::endl;
     }
 

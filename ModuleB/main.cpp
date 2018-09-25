@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
 
         Consumer * consumer = new Consumer("0", QHostAddress(ipAddress), port); 
         consumer->init();
-        //consumer->run();
+        consumer->run();
         //consumers.push_back(consumer);
     //}
 
