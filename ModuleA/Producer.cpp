@@ -97,6 +97,18 @@ void Producer::init()
 void Producer::incomingConnection(qintptr socketDescriptor)
 {
     std::cout << "Incoming connection on " << socketDescriptor << " !" << std::endl;
+    
+    //QTcpSocket * socket = new QTcpSocket;
+
+    //socket->setSocketDescriptor(socketDescriptor);
+    //   
+    //int nRet = socket->write("HELLO");
+    //std::cout << "Wrote " << nRet << " bytes to socket" << std::endl;
+
+    //socket->close();
+
+    //delete socket;
+
     TcpWriterThread *t = new TcpWriterThread(socketDescriptor, m_outputDataQueue, this);
     connect(this, &Producer::quit, t, &TcpWriterThread::deleteLater);
     t->start();

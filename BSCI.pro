@@ -1,7 +1,7 @@
 QT += core network widgets
 # requires(qtConfig(filedialog))
 
-CONFIG += c++11
+CONFIG += c++11 strict_c++
 CONFIG += debug
 
 TEMPLATE = subdirs

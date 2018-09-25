@@ -63,6 +63,7 @@ class Producer : public QTcpServer
     void quit();
 
   public slots:
+    //void openStream();
 
   protected:
     void incomingConnection(qintptr socketDescriptor) override;
@@ -71,6 +72,7 @@ class Producer : public QTcpServer
 
     // Thread pool for each open TCP connection
     //QList<TcpWriterThread *> m_writers;
+
 
     // File reader thread
     FileReaderThread *m_reader = nullptr; 
