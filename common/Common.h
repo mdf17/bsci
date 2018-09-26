@@ -27,6 +27,7 @@ const unsigned int  MAX_INPUT_QUEUE_SIZE   = MAX_QUEUE_SIZE;
 const unsigned int  MAX_OUTPUT_QUEUE_SIZE   = MAX_QUEUE_SIZE;
 const unsigned int  TCP_PACKET_SIZE  = 512;
 const unsigned int  FRAMES_PER_BLOCK = TCP_PACKET_SIZE / FRAME_SIZE; 
+const unsigned int  FRAMES_PER_PACKET = 128;
 
 const QDataStream::Version QDataStreamVersion = QDataStream::Qt_5_6;
 

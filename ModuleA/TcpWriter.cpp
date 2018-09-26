@@ -1,9 +1,11 @@
 #include "TcpWriter.h"
 
+#include <QHostAddress>
 
-TcpWriter::TcpWriter(qintptr socketDescriptor, QObject *parent) : QObject(parent), m_socketDescriptor(socketDescriptor)
+TcpWriter::TcpWriter(qintptr socketDescriptor, QObject *parent) : QObject(parent), m_socketDescriptor(socketDescriptor), m_framesPerBlock(TCP_PACKET_SIZE/FRAME_SIZE)
 {
     std::cout << "TcpWriter()" << std::endl;
+    std::cout << "Frames per block: " << m_framesPerBlock << std::endl;
 }
 
 TcpWriter::~TcpWriter()
@@ -36,21 +38,24 @@ void TcpWriter::disconnected()
 
 void TcpWriter::readyRead()
 {
+    std::cout << "Got readyRead! signal" << std::endl;
     QByteArray data = m_socket->readAll();
 
     write();
 }
 
-void enqueueChecksum(ChecksumT checksum)
+void TcpWriter::enqueueChecksum(ChecksumT checksum)
 {
+    std::cout << "Grabbing checksum! " << checksum.sum << ", " << checksum.timestamp << std::endl;
     m_dataQueue.push_back(checksum);
 }
 
 void TcpWriter::write()
 {
+    std::cout << "TcpWriter::write()" << std::endl;
     while (true) {
-        while (m_dataQueue->size() < m_framesPerBlock)
-            ;
+        while (m_dataQueue.size() < m_framesPerBlock)
+            ;//std::cout << "Data Queue has " << m_dataQueue.size() << " elements" << std::endl;
 
         std::cout << "TcpWriter: Got ChecksumT from queue" << std::endl;
         QByteArray block;
@@ -58,7 +63,7 @@ void TcpWriter::write()
         out.setVersion(QDataStreamVersion);
 
         for (int i = 0; i < m_framesPerBlock; ++i) {
-            ChecksumT checksum = m_dataQueue->pop_front();
+            ChecksumT checksum = m_dataQueue.dequeue();
             out << checksum.sum;
             out << checksum.timestamp;
         }

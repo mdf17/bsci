@@ -1,7 +1,9 @@
 #include <QtWidgets/QApplication>
 #include <QtCore>
 
-#include "Producer.h"
+#include "Server.h"
+#include "FileReader.h"
+#include "FrameParser.h"
 
 int main(int argc, char *argv[])
 {
@@ -9,12 +11,16 @@ int main(int argc, char *argv[])
 
     Server *server = Server::instance();
 
+    qRegisterMetaType<ChecksumT>();
+
     SharedQueue<FrameT> inputDataQueue;
     SharedQueue<ChecksumT> outputDataQueue;
     // initialize with max size
+    inputDataQueue.reset(new ThreadSafeQueue<FrameT>(MAX_INPUT_QUEUE_SIZE));
+    outputDataQueue.reset(new ThreadSafeQueue<ChecksumT>(MAX_OUTPUT_QUEUE_SIZE));
 
     // Initialize the File Reader
-    QThread *readerThread = new QThread(QThread::HighPriority);
+    QThread *readerThread = new QThread;
     FileReader *reader = new FileReader(inputDataQueue);
     if (!reader->connectToDataStream("com_mod_input.bin")) {
         std::cout << "Unable to open data stream!" << std::endl;
@@ -40,7 +46,7 @@ int main(int argc, char *argv[])
 
     // Begin streaming data
     parserThread->start();
-    readerThread->start();
+    readerThread->start(QThread::HighPriority);
 
 
     return app.exec();

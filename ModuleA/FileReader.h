@@ -19,6 +19,11 @@ class FileReader : public QObject
     SharedQueue<FrameT> m_dataQueue;
 
     unsigned int getNumFrames() { return m_numFrames; }
+
+    void read();
+
+  public slots:
+    void close();
     
   private:
     unsigned int m_frameNumber;     // frame counter

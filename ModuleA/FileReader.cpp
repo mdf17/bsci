@@ -2,7 +2,7 @@
 
 
 FileReader::FileReader(SharedQueue<FrameT> dataQueue, QObject *parent) 
-  : QThread(parent),
+  : QObject(parent),
     m_frameNumber(-1),
     m_frameTime(0.),
     m_frameRate(FRAME_RATE),
@@ -35,6 +35,7 @@ bool FileReader::connectToDataStream(const std::string& inputFile)
 
 void FileReader::read() 
 {
+    std::cout << "FileReader::read()" << std::endl;
     using Timestep = READ_RATE;
     std::chrono::duration<double> timestamp;
     m_startTime = hrclock::now();

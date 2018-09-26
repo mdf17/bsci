@@ -23,7 +23,7 @@ class TcpWriter : public QObject
     Q_OBJECT
 
   public:
-    TcpWriter(qintptr socketDescriptor, QObject *parent);
+    TcpWriter(qintptr socketDescriptor, QObject *parent = 0);
     ~TcpWriter();
 
     void write();
@@ -34,13 +34,15 @@ class TcpWriter : public QObject
     void error(QTcpSocket::SocketError socketError);
 
   public slots:
+    void init();
     void disconnected();
     void readyRead();
-    void checksumReady(ChecksumT checksum);
+    void enqueueChecksum(ChecksumT checksum);
 
   private:
     int m_socketDescriptor;
     QTcpSocket * m_socket;
+    unsigned int m_framesPerBlock;
 };
 
 
