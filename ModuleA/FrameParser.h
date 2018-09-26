@@ -20,15 +20,14 @@ class FrameParser : public QObject
     Q_OBJECT
   
   public:
-    FrameParser(SharedQueue<FrameT>, SharedQueue<ChecksumT>, QObject *parent = NULL);
+    FrameParser(SharedQueue<PacketT>, SharedQueue<ChecksumT>, QObject *parent = NULL);
 
-    unsigned int computeChecksum(unsigned int data);
     unsigned int parseHeader(const char *);
     unsigned int parseSample(const char *);
 
-    void setNumFrames(unsigned int n) { m_numFrames = n; }
+    void setNumPackets(unsigned int n) { m_numPackets = n; }
 
-    SharedQueue<FrameT> m_inputDataQueue;
+    SharedQueue<PacketT> m_inputDataQueue;
     SharedQueue<ChecksumT> m_outputDataQueue;
 
 
@@ -40,11 +39,11 @@ class FrameParser : public QObject
 
   private:
     hrclock::time_point m_startTime;
-    unsigned int m_frameNumber;
-    unsigned int m_numFrames;
-    int m_framesPerBlock;
-    std::vector<FrameT> m_rawFrames;
+    unsigned int m_packetNumber;
+    unsigned int m_numPackets;
+    int m_packetsPerFrame;
     std::vector<unsigned int> m_data;           // 8 channels of sample data
+    std::vector<unsigned int> m_checksumData;
 };
 
 #endif

@@ -13,10 +13,10 @@ int main(int argc, char *argv[])
 
     qRegisterMetaType<ChecksumT>();
 
-    SharedQueue<FrameT> inputDataQueue;
+    SharedQueue<PacketT> inputDataQueue;
     SharedQueue<ChecksumT> outputDataQueue;
     // initialize with max size
-    inputDataQueue.reset(new ThreadSafeQueue<FrameT>(MAX_INPUT_QUEUE_SIZE));
+    inputDataQueue.reset(new ThreadSafeQueue<PacketT>(MAX_INPUT_QUEUE_SIZE));
     outputDataQueue.reset(new ThreadSafeQueue<ChecksumT>(MAX_OUTPUT_QUEUE_SIZE));
 
     // Initialize the File Reader
@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
     // Initialize the Frame Parser
     QThread *parserThread = new QThread;
     FrameParser *parser = new FrameParser(inputDataQueue, outputDataQueue);
-    parser->setNumFrames(reader->getNumFrames());
+    parser->setNumPackets(reader->getNumPackets());
     QObject::connect(parser, &FrameParser::checksumReady, server, &Server::forwardChecksum);
     parser->moveToThread(parserThread);
     QObject::connect(parserThread, &QThread::started, parser, &FrameParser::parseFrames);

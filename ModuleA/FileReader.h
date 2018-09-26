@@ -11,14 +11,16 @@ class FileReader : public QObject
     Q_OBJECT
 
   public:
-    FileReader(SharedQueue<FrameT> dataQueue, QObject *parent = NULL);
+    FileReader(SharedQueue<PacketT> dataQueue, QObject *parent = NULL);
 
     bool connectToDataStream(const std::string& inputFile);
     void readPacket(const double& timestamp);
 
-    SharedQueue<FrameT> m_dataQueue;
+    SharedQueue<PacketT> m_dataQueue;
 
-    unsigned int getNumFrames() { return m_numFrames; }
+    unsigned int getNumPackets() { return m_numPackets; }
+    unsigned int getNumFrames() { return m_numPackets / m_packetsPerFrame; }
+    
 
     void read();
 
@@ -26,7 +28,7 @@ class FileReader : public QObject
     void close();
     
   private:
-    unsigned int m_frameNumber;     // frame counter
+    unsigned int m_packetCounter;   // packet counter
     double m_frameTime;             // timestamp (s)
     double m_frameRate;             // Hz
 
@@ -36,9 +38,11 @@ class FileReader : public QObject
     std::ifstream m_dataStream;     // file (data) stream
     unsigned int m_streamSize;      // total size of file, in bytes
     unsigned int m_bytesRead;       // number of bytes read so far
-    unsigned int m_frameSize;       // size of input packet in bytes
-    unsigned int m_numFrames;       // number of frames  = stream size / frame size
-    PacketT m_packet;
+    unsigned int m_packetSize;      // size of input packet in bytes
+    unsigned int m_packetsPerFrame; // packets to a frame
+    unsigned int m_numPackets;      // number of frames = stream size / packet size
+    unsigned int m_frameSize;       // size of input frame in bytes
+    PacketDataT m_packetData;
 };
 
 #endif

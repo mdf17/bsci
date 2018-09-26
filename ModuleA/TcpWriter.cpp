@@ -2,7 +2,7 @@
 
 #include <QHostAddress>
 
-TcpWriter::TcpWriter(qintptr socketDescriptor, QObject *parent) : QObject(parent), m_socketDescriptor(socketDescriptor), m_framesPerBlock(TCP_PACKET_SIZE/FRAME_SIZE)
+TcpWriter::TcpWriter(qintptr socketDescriptor, QObject *parent) : QObject(parent), m_socketDescriptor(socketDescriptor), m_framesPerBlock(TCP_PACKET_SIZE/sizeof(ChecksumT))
 {
     std::cout << "TcpWriter()" << std::endl;
     std::cout << "Frames per block: " << m_framesPerBlock << std::endl;
@@ -59,7 +59,7 @@ void TcpWriter::write()
 
         std::cout << "TcpWriter: Got ChecksumT from queue" << std::endl;
         QByteArray block;
-        QDataStream out(&block, QIODevice::ReadWrite);
+        QDataStream out(&block, QIODevice::WriteOnly);
         out.setVersion(QDataStreamVersion);
 
         for (int i = 0; i < m_framesPerBlock; ++i) {
