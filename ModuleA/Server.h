@@ -10,6 +10,7 @@
 
 #include "Common.h"
 
+#include "TcpWriter.h"
 
 class QTcpServer;
 
@@ -36,7 +37,6 @@ class Server : public QTcpServer
   signals:
     void disconnect();
     void quit();
-    void checksumReady(ChecksumT checksum);
 
   public slots:
     void forwardChecksum(ChecksumT checksum);
@@ -47,7 +47,7 @@ class Server : public QTcpServer
   private:
 
     // Thread pool for each open TCP connection
-    QList<QThread *> m_writers;
+    QList<TcpWriter *> m_writers;
 
     unsigned int m_tcpPacketSize;   // size of TCP packet to send
     int m_maxConnections;           // max number of allowable connections

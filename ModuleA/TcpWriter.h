@@ -28,6 +28,7 @@ class TcpWriter : public QObject
 
     void write();
 
+    void enqueueChecksum(ChecksumT checksum);
     QQueue<ChecksumT> m_dataQueue;
 
   signals:
@@ -37,7 +38,6 @@ class TcpWriter : public QObject
     void init();
     void disconnected();
     void readyRead();
-    void enqueueChecksum(ChecksumT checksum);
 
   private:
     int m_socketDescriptor;

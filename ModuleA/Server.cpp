@@ -6,7 +6,6 @@
 #include <QtNetwork/QNetworkConfigurationManager>
 #include <QSettings>
 
-#include "TcpWriter.h"
 #include "Server.h"
 
 Q_GLOBAL_STATIC(Server, producer)
@@ -71,20 +70,20 @@ void Server::incomingConnection(qintptr socketDescriptor)
     qRegisterMetaType<ChecksumT>();
     TcpWriter *writer = new TcpWriter(socketDescriptor);
     QThread *thread = new QThread;
-    QObject::connect(this, &Server::checksumReady, writer, &TcpWriter::enqueueChecksum, Qt::QueuedConnection);
     QObject::connect(thread, &QThread::started, writer, &TcpWriter::init);
     writer->moveToThread(thread);
     QObject::connect(this, &Server::quit, thread, &QThread::deleteLater);
     thread->start();
     std::cout << "returned to incomingConnection()" << std::endl;
-    m_writers << thread;
+    m_writers << writer;
 }
 
 void Server::forwardChecksum(ChecksumT checksum)
 {
     m_checksum = checksum;
-    if (!m_writers.isEmpty()) {
-        std::cout << "Forward checksum! " << checksum.sum << ", " << checksum.timestamp << std::endl;
-        emit checksumReady(m_checksum);
-    }
+    //if (!m_writers.isEmpty()) {
+        //std::cout << "Forward checksum! " << checksum.sum << ", " << checksum.timestamp << std::endl;
+    //}
+    foreach (TcpWriter *writer, m_writers)
+        writer->enqueueChecksum(checksum);
 }
