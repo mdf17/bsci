@@ -1,60 +1,89 @@
+#include <cstdlib>
+#include <numeric>
+#include <iostream>
+
+#include <QtNetwork/QNetworkSession>
+#include <QtNetwork/QNetworkConfigurationManager>
+#include <QSettings>
+
 #include "Server.h"
-#include "Threads.h"
 
-Q_GLOBAL_STATIC(Server, server)
+Q_GLOBAL_STATIC(Server, producer)
 
-Server *Server::instance()
+Server::Server() : m_maxConnections(MAX_THREADS)
 {
-    return server();
+    std::cout << "Server()" << std::endl;
 }
 
-//Server::~Server()
-//{
-//    std::cout << "~Server()" << std::endl;
-//}
-
-void Server::heartbeat()
+Server * Server::instance()
 {
-    //std::cout << "Server::heartbeat()" << std::endl;
-    if (isListening())
-        std::cout << "listening..." << std::endl;
+    return producer();
+}
 
-    waitForNewConnection(-1);
+Server::~Server()
+{
+    std::cout << "~Server()" << std::endl;
+    // Tell writers to close their TCP Sockets
+    emit disconnect();
 
-    //emit newConnection(qintptr(10));
+    // Tell child threads to die
+    emit quit();
+}
+
+void Server::init()
+{
+    std::cout << "Server::init()" << std::endl; 
+
+    // Attempt to start the server
+    if (!listen()) {
+        std::cout << "Unable to start the server." << std::endl;
+        return;
+    }
+
+    QString ipAddress;
+    QList<QHostAddress> ipAddressesList = QNetworkInterface::allAddresses();
+    // use the first non-localhost IPv4 address
+    for (int i = 0; i < ipAddressesList.size(); ++i) {
+        if (ipAddressesList.at(i) != QHostAddress::LocalHost &&
+            ipAddressesList.at(i).toIPv4Address()) {
+            ipAddress = ipAddressesList.at(i).toString();
+            break;
+        }
+    }
+
+    // if we did not find one, use IPv4 localhost
+    if (ipAddress.isEmpty())
+        ipAddress = QHostAddress(QHostAddress::LocalHost).toString();
+    
+
+    //std::string ipAddressUtf8 = ipAddress.toUtf8().constData();
+    std::cout << "The server is running on IP: " << serverAddress().toString().toUtf8().constData() << " " 
+                                                 << serverPort() << std::endl;
+
+    setMaxPendingConnections(m_maxConnections);
 }
 
 void Server::incomingConnection(qintptr socketDescriptor)
 {
-    //if (m_writers.size() >= m_maxConnections) {
-    //    std::cout << "Received connection request but already at max open connections" << std::endl;
-    //    return;
-    //}
-    
     std::cout << "Incoming connection on " << socketDescriptor << " !" << std::endl;
-
-    //QTcpSocket * socket = new QTcpSocket;
-
-    //if (!socket->setSocketDescriptor(socketDescriptor)) {
-    //    std::cout << "Error opening socket!" << std::endl;
-    //    return;
-    //}
-
-    TcpWriterThread *t = new TcpWriterThread(socketDescriptor, this);
-
-    //t->setSocket(socket);
-
-    //socket->moveToThread(t);
-
-    connect(this, &Server::checksumReady, t, &TcpWriterThread::publishChecksum, Qt::DirectConnection);
-    //connect(this, &Server::checksumReady, t, &TcpWriterThread::publishChecksum);
-    //connect(this, &Producer::disconnect, t, &TcpWriterThread::disconnect);
-    //connect(this, &Producer::quit, t, &TcpWriterThread::deleteLater);
-    t->start();
+    
+    qRegisterMetaType<ChecksumT>();
+    TcpWriter *writer = new TcpWriter(socketDescriptor);
+    QThread *thread = new QThread;
+    QObject::connect(thread, &QThread::started, writer, &TcpWriter::init);
+    writer->moveToThread(thread);
+    QObject::connect(this, &Server::quit, thread, &QThread::deleteLater);
+    thread->start();
+    std::cout << "returned to incomingConnection()" << std::endl;
+    m_writers << writer;
 }
 
-void Server::publishChecksum(ChecksumT checksum)
+void Server::forwardChecksum(ChecksumT checksum)
 {
-    std::cout << "Server: received publishChecksum signal" << std::endl;
-    emit checksumReady(checksum);
+    m_checksum = checksum;
+    //if (!m_writers.isEmpty()) {
+        //std::cout << "Forward checksum! " << checksum.sum << ", " << checksum.timestamp << std::endl;
+    //}
+    foreach (TcpWriter *writer, m_writers)
+        writer->enqueueChecksum(checksum);
 }

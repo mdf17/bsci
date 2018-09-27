@@ -79,6 +79,7 @@ void Consumer::init()
 
     QString hello("HELLO");
 
+    std::cout << "Writing HELLO to socket" << std::endl;
     QByteArray out = hello.toLatin1();
     m_socket->write(out);
 
@@ -135,31 +136,5 @@ void Consumer::catchSocketError()
 {
     QString errorString = m_socket->errorString();
     std::cout << "Socket Error: " << errorString.toUtf8().constData() << std::endl;
-}
-
-void Consumer::run()
-{
-    QDataStream in(m_socket);
-    in.setVersion(QDataStreamVersion);
-
-    const int timeout = 5 * 1000;
-    while (connectedToHost) {
-
-        if (!m_socket->bytesAvailable()) {
-            //std::cout << "Got no data" << std::endl;
-            continue;
-        }
-        
-
-        std::cout << "Got data!" << std::endl;
-        //    
-        QByteArray block;
-
-        in >> block;
-
-        frameBuffer->push_back(block);
-    }
-
-    return;
 }
 

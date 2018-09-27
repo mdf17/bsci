@@ -13,29 +13,50 @@
 #include <QtCore/QDebug>
 #include <QtCore/QString>
 
-//const unsigned int  FRAME_RATE      = 64000;
-const unsigned int  FRAME_RATE       = 1; //64000;
-const unsigned int  MAX_THREADS      = 8;
-const unsigned int  NUM_CHANNELS     = 8;
-const unsigned int  HEADER_SIZE      = 4;    // bytes
-const unsigned int  SAMPLE_SIZE      = 4;    // bytes
-const unsigned int  FRAME_SIZE       = HEADER_SIZE + SAMPLE_SIZE*NUM_CHANNELS;
-const unsigned int  BYTE             = 8;
-const unsigned int  BIT              = 1;
-const unsigned int  MAX_QUEUE_SIZE   = 2000;
-const unsigned int  MAX_INPUT_QUEUE_SIZE   = MAX_QUEUE_SIZE;
-const unsigned int  MAX_OUTPUT_QUEUE_SIZE   = MAX_QUEUE_SIZE;
-const unsigned int  TCP_PACKET_SIZE  = 512;
-const unsigned int  FRAMES_PER_BLOCK = TCP_PACKET_SIZE / FRAME_SIZE; 
+const unsigned int  FRAME_RATE                      = 1; //64000;
+const unsigned int  MAX_THREADS                     = 8;
+const unsigned int  NUM_CHANNELS                    = 8;
+const unsigned int  HEADER_SIZE                     = 4;    // bytes
+const unsigned int  SAMPLE_SIZE                     = 4;    // bytes
+const unsigned int  PACKET_SIZE                     = HEADER_SIZE + SAMPLE_SIZE*NUM_CHANNELS; //bytes
+const unsigned int  PACKETS_PER_FRAME               = 128;
+const unsigned int  MAX_QUEUE_SIZE                  = 2000;
+const unsigned int  MAX_INPUT_QUEUE_SIZE            = MAX_QUEUE_SIZE;
+const unsigned int  MAX_OUTPUT_QUEUE_SIZE           = MAX_QUEUE_SIZE;
+const unsigned int  TCP_PACKET_SIZE                 = PACKET_SIZE * PACKETS_PER_FRAME;
+const unsigned int  BYTE                            = 8;
+const unsigned int  BIT                             = 1;
 
 const QDataStream::Version QDataStreamVersion = QDataStream::Qt_5_6;
 
 // assume for now that char is 8 bits
-typedef std::array<char, FRAME_SIZE> PacketT;
+typedef std::array<char, PACKET_SIZE> PacketDataT;
+struct PacketT {
+    PacketDataT data;
+    double timestamp;
+    PacketT() {}
+    PacketT(const PacketDataT& d, const double& t) : data(d), timestamp(t) { }
+};
+
+typedef std::array<PacketT, PACKETS_PER_FRAME> FrameDataT;
+
+struct FrameT {
+    FrameDataT data;
+    double frameTime;
+    FrameT() {}
+    FrameT(const FrameDataT& d, const double& t) : data(d), frameTime(t) {}
+};
+
+struct ChecksumT {
+    double timestamp;
+    unsigned int sum[NUM_CHANNELS];
+};
+
+Q_DECLARE_METATYPE(ChecksumT)
+
 
 using hrclock = std::chrono::high_resolution_clock;
 using READ_RATE = std::chrono::duration<hrclock::rep, std::ratio<1, FRAME_RATE>>;
-using WRITE_RATE = std::chrono::duration<hrclock::rep, std::ratio<1, FRAME_RATE/2>>;
 
 
 
@@ -65,21 +86,6 @@ inline std::string to_string(QString qstr)
     return qstr.toUtf8().constData();
 }
 
-
-struct FrameT {
-    PacketT packet;
-    double frameTime;
-    FrameT() {}
-    FrameT(const PacketT& p, const double& t) : packet(p), frameTime(t) {}
-};
-
-struct ChecksumT {
-    double timestamp;
-    unsigned int sum;
-};
-
-Q_DECLARE_METATYPE(FrameT)
-Q_DECLARE_METATYPE(ChecksumT)
 
 
 template<typename T>

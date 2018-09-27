@@ -18,7 +18,7 @@ class Consumer : public QObject
 
     void run(); // override;
 
-    std::shared_ptr<ThreadSafeQueue<QByteArray>> frameBuffer;
+    SharedQueue<QByteArray> frameBuffer;
 
   signals:
     void error(QTcpSocket::SocketError socketError);

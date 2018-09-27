@@ -9,9 +9,9 @@ TARGET = ModuleA
 
 INCLUDEPATH += ../common
 
-HEADERS += Threads.h Producer.h
+HEADERS += FileReader.h FrameParser.h TcpWriter.h Server.h
 
-SOURCES += main.cpp Threads.cpp Producer.cpp
+SOURCES += main.cpp FileReader.cpp FrameParser.cpp TcpWriter.cpp Server.cpp
 
 INCLUDE_PATH += /usr/include/qt5
 
