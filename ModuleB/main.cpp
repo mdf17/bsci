@@ -2,6 +2,7 @@
 
 #include <QtWidgets/QApplication>
 #include <QtCore>
+#include <QObject>
 
 #include "Consumer.h"
 
@@ -25,9 +26,12 @@ int main(int argc, char *argv[])
         
         //std::string id = std::to_string(i);
 
+
+        QThread * thread = new QThread;
         Consumer * consumer = new Consumer("0", QHostAddress(ipAddress), port); 
-        consumer->init();
-        consumer->run();
+        consumer->moveToThread(thread);
+        QObject::connect(thread, SIGNAL(started()), consumer, SLOT(init()));
+        thread->start();
         //consumers.push_back(consumer);
     //}
 

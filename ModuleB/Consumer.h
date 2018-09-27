@@ -16,20 +16,20 @@ class Consumer : public QObject
     Consumer(const std::string id, const QHostAddress hostAddress, const quint16 port);
     ~Consumer();
 
-    void init();
     void run(); // override;
 
     std::shared_ptr<ThreadSafeQueue<QByteArray>> frameBuffer;
 
   signals:
     void error(QTcpSocket::SocketError socketError);
-    void quit();
 
   public slots:
+    void init();
     void readBlock();
     void disconnected();
     void socketChanged();
     void catchSocketError();
+    void quit();
 
   private:
     // Allow multiple Consumers to exist
