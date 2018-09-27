@@ -5,6 +5,7 @@
 #include <QtCore/QObject>
 
 #include "Common.h"
+#include "Config.h"
 
 class FileReader : public QObject
 {
@@ -13,7 +14,8 @@ class FileReader : public QObject
   public:
     FileReader(SharedQueue<PacketT> dataQueue, QObject *parent = NULL);
 
-    bool connectToDataStream(const std::string& inputFile);
+    //bool connectToDataStream(const std::string& inputFile);
+    bool connectToDataStream();
     void readPacket(const double& timestamp);
 
     SharedQueue<PacketT> m_dataQueue;
@@ -23,19 +25,21 @@ class FileReader : public QObject
     
 
     void read();
+    void readConfigFile();
 
   public slots:
     void close();
     
   private:
-    unsigned int m_packetCounter;   // packet counter
     double m_frameTime;             // timestamp (s)
-    double m_frameRate;             // Hz
+    unsigned int m_frameRate;             // Hz
 
     hrclock::time_point m_startTime;
 
     // File I/O Members
-    std::ifstream m_dataStream;     // file (data) stream
+    std::string m_inputFile;        // input file name
+    //std::ifstream m_dataStream;     // file (data) stream
+    FILE *m_dataStream;             // file (data) stream
     unsigned int m_streamSize;      // total size of file, in bytes
     unsigned int m_bytesRead;       // number of bytes read so far
     unsigned int m_packetSize;      // size of input packet in bytes

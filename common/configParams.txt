@@ -1,0 +1,4 @@
+tcpPacketSize 1500
+ipAddress 0.0.0.0
+port 39333
+maxConnections 8

@@ -1,11 +1,12 @@
 #include "TcpWriter.h"
+#include "Config.h"
 
 #include <QHostAddress>
 
-TcpWriter::TcpWriter(qintptr socketDescriptor, QObject *parent) : QObject(parent), m_socketDescriptor(socketDescriptor), m_framesPerBlock(TCP_PACKET_SIZE/sizeof(ChecksumT))
+TcpWriter::TcpWriter(qintptr socketDescriptor, QObject *parent) : QObject(parent), m_socketDescriptor(socketDescriptor), m_framesPerBlock(TCP_PACKET_SIZE/sizeof(ChecksumT)), m_dataQueue(m_framesPerBlock)
 {
-    std::cout << "TcpWriter()" << std::endl;
-    std::cout << "Frames per block: " << m_framesPerBlock << std::endl;
+    //std::cout << "TcpWriter()" << std::endl;
+    //std::cout << "Frames per block: " << m_framesPerBlock << std::endl;
 }
 
 TcpWriter::~TcpWriter()
@@ -15,7 +16,7 @@ TcpWriter::~TcpWriter()
 
 void TcpWriter::init()
 {
-    std::cout << "TcpWriter::init()" << std::endl;
+    //std::cout << "TcpWriter::init()" << std::endl;
 
     m_socket = new QTcpSocket;
 
@@ -26,6 +27,16 @@ void TcpWriter::init()
     if (!m_socket->setSocketDescriptor(m_socketDescriptor)) {
         emit error(m_socket->error());
         return;
+    }
+
+    Config * config = Config::instance();
+
+    std::string sTcpPacketSize;
+    if (config->lookup("tcpPacketSize", sTcpPacketSize)) {
+        int tcpPacketSize = atoi(sTcpPacketSize.c_str());
+        m_framesPerBlock = tcpPacketSize / sizeof(ChecksumT);
+        m_dataQueue.setQueueBudget(m_framesPerBlock);
+        std::cout << "TcpWriter: Setting frames per block = " << m_framesPerBlock << std::endl;
     }
 }
 
@@ -38,7 +49,7 @@ void TcpWriter::disconnected()
 
 void TcpWriter::readyRead()
 {
-    std::cout << "Got readyRead! signal" << std::endl;
+    //std::cout << "Got readyRead! signal" << std::endl;
     QByteArray data = m_socket->readAll();
 
     write();
@@ -46,24 +57,25 @@ void TcpWriter::readyRead()
 
 void TcpWriter::enqueueChecksum(ChecksumT checksum)
 {
-    std::cout << "Grabbing checksum! " << checksum.sum << ", " << checksum.timestamp << std::endl;
     m_dataQueue.push_back(checksum);
+    //std::cout << "Grabbing checksum! Queue.size = " << m_dataQueue.size() << std::endl; //<< checksum.sum << ", " << checksum.timestamp << std::endl;
 }
 
 void TcpWriter::write()
 {
-    std::cout << "TcpWriter::write()" << std::endl;
+    std::cout << "TcpWriter::write() frames per block = " << m_framesPerBlock << std::endl;
     while (true) {
         while (m_dataQueue.size() < m_framesPerBlock)
             ;//std::cout << "Data Queue has " << m_dataQueue.size() << " elements" << std::endl;
 
-        std::cout << "TcpWriter: Got ChecksumT from queue" << std::endl;
+        std::cout << "TcpWriter: Got ChecksumT from queue, queue size = " << m_dataQueue.size() << std::endl;
         QByteArray block;
         QDataStream out(&block, QIODevice::WriteOnly);
         out.setVersion(QDataStreamVersion);
 
         for (int i = 0; i < m_framesPerBlock; ++i) {
-            ChecksumT checksum = m_dataQueue.dequeue();
+            std::cout << "pop" << std::endl;
+            ChecksumT checksum = m_dataQueue.pop_front();
             out << checksum.sum;
             out << checksum.timestamp;
         }

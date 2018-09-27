@@ -13,7 +13,7 @@
 #include <QtCore/QDebug>
 #include <QtCore/QString>
 
-const unsigned int  FRAME_RATE                      = 1; //64000;
+const unsigned int  FRAME_RATE                      = 640; //64000;
 const unsigned int  MAX_THREADS                     = 8;
 const unsigned int  NUM_CHANNELS                    = 8;
 const unsigned int  HEADER_SIZE                     = 4;    // bytes
@@ -23,7 +23,10 @@ const unsigned int  PACKETS_PER_FRAME               = 128;
 const unsigned int  MAX_QUEUE_SIZE                  = 2000;
 const unsigned int  MAX_INPUT_QUEUE_SIZE            = MAX_QUEUE_SIZE;
 const unsigned int  MAX_OUTPUT_QUEUE_SIZE           = MAX_QUEUE_SIZE;
-const unsigned int  TCP_PACKET_SIZE                 = PACKET_SIZE * PACKETS_PER_FRAME;
+const unsigned int  CHECKSUM_SIZE                   = 4;
+const unsigned int  TIMESTAMP_SIZE                  = 8;
+const unsigned int  TCP_PACKET_SIZE                 = 1500;
+const unsigned int  CHECKSUMS_PER_PACKET            = TCP_PACKET_SIZE / (TIMESTAMP_SIZE + CHECKSUM_SIZE * NUM_CHANNELS);
 const unsigned int  BYTE                            = 8;
 const unsigned int  BIT                             = 1;
 
@@ -123,6 +126,11 @@ class ThreadSafeQueue
     int size() { 
         QMutexLocker locker(&mtx);
         return m_queue.size(); 
+    }
+
+    void setQueueBudget(unsigned int budget) {
+        QMutexLocker locker(&mtx);
+        m_queueBudget = budget;
     }
 
   private:

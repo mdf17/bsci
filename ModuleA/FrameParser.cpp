@@ -6,11 +6,11 @@
 #include "FrameParser.h"
 
 FrameParser::FrameParser(SharedQueue<PacketT> inputDataQueue, SharedQueue<ChecksumT> outputDataQueue, QObject *parent) 
-    : QObject(parent), m_numPackets(0), m_data(NUM_CHANNELS)
+    : QObject(parent), 
+      m_packetNumber(-1), 
+      m_numPackets(0), 
+      m_packetsPerFrame(PACKETS_PER_FRAME)
 {
-    m_packetNumber = -1;
-
-    m_packetsPerFrame = PACKETS_PER_FRAME;
     m_inputDataQueue = inputDataQueue;
     m_outputDataQueue = outputDataQueue;
 }
@@ -19,7 +19,7 @@ unsigned int FrameParser::parseHeader(const char * packet)
 {
     quint32 flipped = fromNetworkData(packet);
     if ( (flipped & 0x1) ) {
-        //std::cout << m_frameNumber << " Did not see frame sync bit!!!" << std::endl;
+        //std::cout << m_packetNumber << " frame sync bit!!!" << std::endl;
     }
     return flipped >> 1;
 }
@@ -35,17 +35,14 @@ void FrameParser::parseFrames()
     while (true) {
         ChecksumT checksum;
         PacketT packet;
-        //std::cout << "FrameParser::parseFrame()" << std::endl;
-        unsigned int numPackets = 0;
+        int numPackets = 0;
 
         while (numPackets < m_packetsPerFrame) {
 
             while(m_inputDataQueue->empty())
                 ;
 
-            //std::cout << "FrameParser::parseFrame()" << std::endl;
             packet = m_inputDataQueue->pop_front();
-            //std::cout << "pop " << m_inputDataQueue->size() << std::endl;
 
             unsigned int packetNumber = parseHeader(packet.data.data());
             if (packetNumber != m_packetNumber + 1) {
@@ -62,7 +59,7 @@ void FrameParser::parseFrames()
                 //          << std::endl;
                 checksum.sum[i] += parseSample(packet.data.data() + HEADER_SIZE + SAMPLE_SIZE*i);
             }
-            std::cout << "HEADER " << packetNumber << std::endl;
+            //std::cout << "HEADER " << packetNumber << std::endl;
             
             numPackets++;
 

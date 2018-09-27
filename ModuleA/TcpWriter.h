@@ -29,7 +29,7 @@ class TcpWriter : public QObject
     void write();
 
     void enqueueChecksum(ChecksumT checksum);
-    QQueue<ChecksumT> m_dataQueue;
+    ThreadSafeQueue<ChecksumT> m_dataQueue;
 
   signals:
     void error(QTcpSocket::SocketError socketError);
@@ -42,7 +42,7 @@ class TcpWriter : public QObject
   private:
     int m_socketDescriptor;
     QTcpSocket * m_socket;
-    unsigned int m_framesPerBlock;
+    int m_framesPerBlock;
 };
 
 

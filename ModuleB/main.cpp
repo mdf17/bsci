@@ -14,28 +14,28 @@ int main(int argc, char *argv[])
 
     const char * sPort = argv[2];
 
+    int numConsumers = 1;
+    if (argc > 3) {
+        numConsumers = atoi(argv[3]);
+    }
     QString ipAddress (sIpAddress);
     quint16 port (atoi(sPort));
     std::string ipAddressUtf8 = ipAddress.toUtf8().constData();
 
     std::cout << "Connecting to IP Address: " << ipAddressUtf8 << " Port " << port << std::endl;
 
-    //std::vector<Consumer *> consumers;
+    QList<Consumer *> consumers;
+    QList<QThread *> threads;
 
-    //for (unsigned int i = 0; i < MAX_THREADS; ++i) {
-        
-        //std::string id = std::to_string(i);
-
-
+    for (int i = 0; i < numConsumers; i++) {
         QThread * thread = new QThread;
-        Consumer * consumer = new Consumer("0", QHostAddress(ipAddress), port); 
+        Consumer * consumer = new Consumer(std::to_string(i), QHostAddress(ipAddress), port); 
         consumer->moveToThread(thread);
         QObject::connect(thread, SIGNAL(started()), consumer, SLOT(init()));
+        consumers << consumer;
+        threads << thread;
         thread->start();
-        //consumers.push_back(consumer);
-    //}
-
-    std::cout << "exec()" << std::endl;
+    }
 
     return app.exec();
 }

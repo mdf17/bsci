@@ -27,7 +27,6 @@ class Consumer : public QObject
     void init();
     void readBlock();
     void disconnected();
-    void socketChanged();
     void catchSocketError();
     void quit();
 

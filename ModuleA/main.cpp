@@ -9,6 +9,8 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
+    Config::instance()->init("../common/configParams.txt");
+
     Server *server = Server::instance();
 
     qRegisterMetaType<ChecksumT>();
@@ -22,7 +24,8 @@ int main(int argc, char *argv[])
     // Initialize the File Reader
     QThread *readerThread = new QThread;
     FileReader *reader = new FileReader(inputDataQueue);
-    if (!reader->connectToDataStream("com_mod_input.bin")) {
+    //if (!reader->connectToDataStream("com_mod_input.bin")) {
+    if (!reader->connectToDataStream()) {
         std::cout << "Unable to open data stream!" << std::endl;
         return 1;
     }
@@ -35,6 +38,7 @@ int main(int argc, char *argv[])
     // Initialize the Frame Parser
     QThread *parserThread = new QThread;
     FrameParser *parser = new FrameParser(inputDataQueue, outputDataQueue);
+    // Needed for when header numbers wrap around to beginning
     parser->setNumPackets(reader->getNumPackets());
     QObject::connect(parser, &FrameParser::checksumReady, server, &Server::forwardChecksum);
     parser->moveToThread(parserThread);
