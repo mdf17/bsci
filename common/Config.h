@@ -4,8 +4,8 @@
 #include <map>
 #include <string>
 
-#include <QtCore/QObject>
-#include <QtCore/QtGlobal>
+#include <QObject>
+#include <QtGlobal>
 
 class Config : public QObject
 {

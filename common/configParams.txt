@@ -2,3 +2,9 @@ tcpPacketSize 1500
 ipAddress 0.0.0.0
 port 39333
 maxConnections 8
+maxFileSize 2097152
+maxInputQueueSize 10000
+maxTcpReaderQueueSize 100
+maxTcpWriterQueueSize 1000
+outputPath ./data
+useStdOut

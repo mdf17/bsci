@@ -1,10 +1,10 @@
 #ifndef CONSUMER_H
 #define CONSUMER_H
 
-#include <string>
-
-
-#include "Threads.h"
+#include <QThread>
+#include <QHostAddress> 
+#include <QtNetwork/QTcpSocket>
+#include "FileWriter.h"
 
 // Module B - Consumer class
 // Can be many Consumers for a single Producer
@@ -16,12 +16,11 @@ class Consumer : public QObject
     Consumer(const std::string id);
     ~Consumer();
 
-    void run(); // override;
-
     SharedQueue<QByteArray> frameBuffer;
 
   signals:
     void error(QTcpSocket::SocketError socketError);
+    void finished();
 
   public slots:
     void init();
@@ -43,7 +42,8 @@ class Consumer : public QObject
     QTcpSocket *m_socket;
 
     // output data to file (stdout)
-    FileWriterThread *m_writer;
+    FileWriter *m_writer;
+    QThread *m_writerThread;
 
     bool connectedToHost;
 };

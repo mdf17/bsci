@@ -1,6 +1,5 @@
 #include <cstring>
 
-#include "Config.h"
 #include "Consumer.h"
 
 Consumer::Consumer(const std::string id)
@@ -16,9 +15,8 @@ Consumer::~Consumer()
 void Consumer::quit()
 {
     m_socket->disconnectFromHost();
-    m_socket->waitForDisconnected();
     m_socket->deleteLater();
-    m_writer->wait();
+    m_writerThread->wait();
 }
 
 void Consumer::init()
@@ -64,8 +62,14 @@ void Consumer::init()
         std::cout << "Consumer: Socket Port: " << m_socket->peerPort() << std::endl;
         connectedToHost = true;
     }
-    m_writer = new FileWriterThread(m_id, frameBuffer, this);
-    m_writer->start(QThread::LowPriority);
+
+    m_writer = new FileWriter(m_id, frameBuffer);
+    m_writerThread = new QThread;
+    m_writer->moveToThread(m_writerThread);
+    QObject::connect(m_writerThread, &QThread::started, m_writer, &FileWriter::init);
+    QObject::connect(this, &Consumer::finished, m_writerThread, &QThread::deleteLater);
+    //m_writerThread->start(QThread::LowPriority);
+    m_writerThread->start();
     
     QString hello("HELLO");
     QByteArray out = hello.toLatin1();
@@ -74,15 +78,16 @@ void Consumer::init()
 
 void Consumer::readBlock()
 {
-     //std::cout << "Got readyRead! signal from socket, bytes available = " << m_socket->bytesAvailable() << std::endl;
+     std::cout << "Got readyRead! signal from socket, bytes available = " << m_socket->bytesAvailable() << std::endl;
      QByteArray block = m_socket->readAll();
-     frameBuffer->push_back(block);
+     frameBuffer->push(block);
 }
 
 void Consumer::disconnected()
 {
     std::cout << "Consumer::disconnected()!" << std::endl;
     connectedToHost = false;
+    emit quit();
 }
 
 void Consumer::catchSocketError()

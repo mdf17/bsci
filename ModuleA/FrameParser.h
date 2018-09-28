@@ -1,8 +1,6 @@
 #ifndef FRAMEPARSER_H
 #define FRAMEPARSER_H
 
-#include <QtCore/QObject>
-
 #include "Common.h"
 
 /*******************************************************************
@@ -19,7 +17,7 @@ class FrameParser : public QObject
     Q_OBJECT
   
   public:
-    FrameParser(SharedQueue<PacketT>, QObject *parent = NULL);
+    FrameParser(const SharedQueue<PacketT>&, QObject *parent = NULL);
 
     unsigned int parseHeader(const char *);
     unsigned int parseSample(const char *);
@@ -31,15 +29,18 @@ class FrameParser : public QObject
 
   signals:
     void checksumReady(ChecksumT checksum);
+    void finished();
 
   public slots:
     void parseFrames();
+    void close();
 
   private:
     hrclock::time_point m_startTime;
-    unsigned int m_packetNumber;
     unsigned int m_numPackets;
-    int m_packetsPerFrame;
+    unsigned int m_packetsPerFrame;
+    unsigned int m_packetHeaderSize;
+    unsigned int m_packetSampleSize;
 };
 
 #endif

@@ -1,19 +1,19 @@
 #ifndef TCPWRITER_H
 #define TCPWRITER_H
 
-#include <QtCore/QObject>
-#include <QtNetwork/QTcpSocket>
+#include <QObject>
+#include <QTcpSocket>
 
 #include "Common.h"
 
 
 /*******************************************************************
- * class TcpWriterThread
+ * class TcpWriter
  *
- * Inherits: QThread
+ * Inherits: QObject
  * 
  * Completes request to open a TCP Connection 
- * Waits for ComputeThread to emit a checksumReady() signal
+ * readyRead() slot waits for a checksumReady() signal from parser thread
  * writes checksum/timestamp data to socket for client to read
  * manages TCP socket
  *******************************************************************/
@@ -30,8 +30,12 @@ class TcpWriter : public QObject
     void enqueueChecksum(ChecksumT checksum);
     ThreadSafeQueue<ChecksumT> m_dataQueue;
 
+    QString id() { return m_id; }
+
   signals:
     void error(QTcpSocket::SocketError socketError);
+    void finished();
+    void disconnected(QString id);
 
   public slots:
     void init();
@@ -41,8 +45,9 @@ class TcpWriter : public QObject
   private:
     int m_socketDescriptor;
     QTcpSocket * m_socket;
-    int m_framesPerBlock;
-    bool connectedToHost;
+    int m_tcpPacketSize;
+    bool m_connectedToHost;
+    QString m_id;
 };
 
 

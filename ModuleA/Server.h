@@ -1,35 +1,26 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include <memory>
-#include <fstream>
-
-#include <QtCore/QtGlobal>
-#include <QtCore/QThread>
-#include <QtNetwork/QTcpServer>
+#include <QTcpServer>
 
 #include "Common.h"
 
-#include "TcpWriter.h"
+//class QTcpServer;
 
-class QTcpServer;
-
-// read binary input file
+// Server class
 //
-// loop at constant frame rate
+// inherits QTcpServer
 //
-// Enqueue the data with a timestamp
+// Signals Producer App to spawn TCP writer threads
+// on new connection
 //
-// manage TCP connections
 class Server : public QTcpServer
 {
     Q_OBJECT
 
   public:
     Server();
-
     static Server *instance();
-
     ~Server();
 
     void init();
@@ -37,21 +28,18 @@ class Server : public QTcpServer
   signals:
     void disconnect();
     void quit();
-
-  public slots:
-    void forwardChecksum(ChecksumT checksum);
+    void openNewConnection(qintptr socketDescriptor);
 
   protected:
     void incomingConnection(qintptr socketDescriptor) override;
 
   private:
 
-    // Thread pool for each open TCP connection
-    QList<TcpWriter *> m_writers;
+    // size of TCP packet to send
+    unsigned int m_tcpPacketSize;
 
-    unsigned int m_tcpPacketSize;   // size of TCP packet to send
-    int m_maxConnections;           // max number of allowable connections
-    ChecksumT m_checksum;
+    // max number of allowable connections
+    int m_maxConnections;
 };
 
 #endif

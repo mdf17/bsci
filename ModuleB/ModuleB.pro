@@ -8,9 +8,9 @@ TARGET = ModuleB
 INCLUDEPATH += ../common
 LIBS += -L../common -lcommon
 
-HEADERS += Threads.h Consumer.h
+HEADERS += FileWriter.h Consumer.h
 
-SOURCES += main.cpp Threads.cpp Consumer.cpp
+SOURCES += main.cpp FileWriter.cpp Consumer.cpp
 
 INCLUDE_PATH += /usr/include/qt5
 

@@ -4,69 +4,75 @@
 #include <array>
 #include <iostream>
 #include <chrono>
-#include <memory>
 
-#include <QtCore/QQueue>
-#include <QtCore/QMetaType>
-#include <QtCore/QDataStream>
-#include <QtCore/QMutex>
-#include <QtCore/QDebug>
-#include <QtCore/QString>
+#include <QMetaType>
+#include <QDataStream>
+#include <QString>
 
-const unsigned int  FRAME_RATE                      = 64000; //64000;
-const unsigned int  MAX_THREADS                     = 8;
-const unsigned int  NUM_CHANNELS                    = 8;
-const unsigned int  HEADER_SIZE                     = 4;    // bytes
-const unsigned int  SAMPLE_SIZE                     = 4;    // bytes
-const unsigned int  PACKET_SIZE                     = HEADER_SIZE + SAMPLE_SIZE*NUM_CHANNELS; //bytes
-const unsigned int  PACKETS_PER_FRAME               = 128;
-const unsigned int  MAX_QUEUE_SIZE                  = 10000;
-const unsigned int  MAX_INPUT_QUEUE_SIZE            = MAX_QUEUE_SIZE;
-const unsigned int  MAX_OUTPUT_QUEUE_SIZE           = MAX_QUEUE_SIZE;
-const unsigned int  CHECKSUM_SIZE                   = 4;
-const unsigned int  TIMESTAMP_SIZE                  = 8;
-const unsigned int  TCP_PACKET_SIZE                 = 1500;
-const unsigned int  BYTE                            = 8;
-const unsigned int  BIT                             = 1;
+#include "Config.h"
+#include "ThreadSafeQueue.h"
 
+// For convenience
+typedef unsigned int PacketHeader;
+typedef unsigned int PacketSample;
+typedef double TimeStamp;
+
+// For writing to/reading from TCP socket
 const QDataStream::Version QDataStreamVersion = QDataStream::Qt_5_6;
 
-// assume for now that char is 8 bits
+
+// Program Constants
+const unsigned int  BYTE                            = 8;                                // unitless
+const unsigned int  BIT                             = 1;                                // unitless
+const unsigned int  FRAME_RATE                      = 640;                            // Hz
+const unsigned int  NUM_CHANNELS                    = 8;                                // unitless
+const unsigned int  PACKETS_PER_FRAME               = 128;                              // unitless
+const unsigned int  PACKET_SIZE                     = sizeof(PacketHeader) + sizeof(PacketSample)*NUM_CHANNELS; //bytes
+
+// Config Param Default Values
+const unsigned int  MAX_CONNECTIONS                 = 8;
+const unsigned int  MAX_INPUT_QUEUE_SIZE            = MAX_QUEUE_SIZE;
+const unsigned int  MAX_OUTPUT_QUEUE_SIZE           = MAX_QUEUE_SIZE;
+const unsigned int  TCP_PACKET_SIZE                 = 1500;                             // bytes
+const unsigned int  MAX_FILE_SIZE                   = 1048576;                          // Max Output File size of 1MB
+
+// For controlling data read rate
+using hrclock = std::chrono::high_resolution_clock;
+using READ_RATE = std::chrono::duration<hrclock::rep, std::ratio<1, FRAME_RATE>>;
+
+// struct PacketT
+// Contains the raw packet data and a timestamp value
+// assume system in which char is 8 bits
+// use fixed-size array
 typedef std::array<char, PACKET_SIZE> PacketDataT;
 struct PacketT {
-    PacketDataT data;
-    double timestamp;
+    PacketDataT data;       // header + 8 channels
+    TimeStamp timestamp;    // in seconds
     PacketT() {}
     PacketT(const PacketDataT& d, const double& t) : data(d), timestamp(t) { }
 };
 
-typedef std::array<PacketT, PACKETS_PER_FRAME> FrameDataT;
-
-struct FrameT {
-    FrameDataT data;
-    double frameTime;
-    FrameT() {}
-    FrameT(const FrameDataT& d, const double& t) : data(d), frameTime(t) {}
-};
-
+// struct ChecksumT
+// Contains the checksums for 8 channels for a Frame of data, plus a timestamp
+typedef std::array<unsigned int, NUM_CHANNELS> ChecksumDataT;
 struct ChecksumT {
-    double timestamp;
-    unsigned int sum[NUM_CHANNELS];
+    ChecksumDataT sum;
+    TimeStamp timestamp;
+    friend std::ostream & operator << (std::ostream &out, const ChecksumT &c); 
 };
 
+// to allow passing through signals/slots
 Q_DECLARE_METATYPE(ChecksumT)
 
 
-using hrclock = std::chrono::high_resolution_clock;
-using READ_RATE = std::chrono::duration<hrclock::rep, std::ratio<1, FRAME_RATE>>;
-
-
+//////////////////////
+// Common functions //
+//////////////////////
 
 // Reads a 32bit unsigned int from data in network order.
 static inline quint32 fromNetworkData(const char *packet)
 {
     const unsigned char *upacket = (const unsigned char *)packet;
-    //std::cout << std::bitset<8>(upacket[0]) << std::endl;
     return (quint32(upacket[0])           )
         | (quint32(upacket[1])  <<   BYTE )
         | (quint32(upacket[2])  << 2*BYTE )
@@ -74,74 +80,21 @@ static inline quint32 fromNetworkData(const char *packet)
 }
 
 // Writes a 32bit unsigned int from num to data in network order.
+// Unused but good to have the symmetric function
 static inline void toNetworkData(quint32 num, char *data)
 {
     unsigned char *udata = (unsigned char *)data;
-    udata[3] = (num & 0xff);
-    udata[2] = (num & 0xff00) >> 8;
-    udata[1] = (num & 0xff0000) >> 16;
-    udata[0] = (num & 0xff000000) >> 24;
+    udata[0] = (num & 0xff);
+    udata[1] = (num & 0xff00) >> BYTE;
+    udata[2] = (num & 0xff0000) >> 2*BYTE;
+    udata[3] = (num & 0xff000000) >> 3*BYTE;
 }
 
+// helper for debugging
 inline std::string to_string(QString qstr)
 {
     return qstr.toUtf8().constData();
 }
-
-
-
-template<typename T>
-class ThreadSafeQueue
-{
-  public:
-    ThreadSafeQueue() : m_queueBudget(MAX_QUEUE_SIZE) { }
-    ThreadSafeQueue(unsigned int maxQueueSize) : m_queueBudget(maxQueueSize), m_size(0) { }
-
-    void push_back(const T& data) {
-        if (m_size < m_queueBudget) {
-            mtx.lock();
-            m_queue.enqueue(data);
-            m_size++;
-            mtx.unlock();
-        } else {
-            std::cout << "queue full!!!" << std::endl;
-        }
-    }
-
-    T pop_front() {
-        QMutexLocker locker(&mtx);
-        T retval;
-        if (m_size > 0) {
-            retval = m_queue.dequeue(); 
-            m_size--;
-        }
-        return retval;
-    }
-
-    bool empty() {
-        QMutexLocker locker(&mtx);
-        return m_queue.isEmpty();
-    }
-
-    int size() { 
-        QMutexLocker locker(&mtx);
-        return m_queue.size(); 
-    }
-
-    void setQueueBudget(unsigned int budget) {
-        QMutexLocker locker(&mtx);
-        m_queueBudget = budget;
-    }
-
-  private:
-    QMutex mtx;
-    QQueue<T> m_queue;
-    unsigned int m_queueBudget;
-    unsigned int m_size;
-};
-
-template<typename T> 
-using SharedQueue = std::shared_ptr<ThreadSafeQueue<T>>;
 
 
 #endif
