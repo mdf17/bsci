@@ -12,13 +12,6 @@ Consumer::~Consumer()
 {
 }
 
-void Consumer::quit()
-{
-    m_socket->disconnectFromHost();
-    m_socket->deleteLater();
-    m_writerThread->wait();
-}
-
 void Consumer::init()
 {
     std::cout << "Consumer::init()" << std::endl;
@@ -78,7 +71,7 @@ void Consumer::init()
 
 void Consumer::readBlock()
 {
-     std::cout << "Got readyRead! signal from socket, bytes available = " << m_socket->bytesAvailable() << std::endl;
+     //std::cout << "Got readyRead! signal from socket, bytes available = " << m_socket->bytesAvailable() << std::endl;
      QByteArray block = m_socket->readAll();
      frameBuffer->push(block);
 }
@@ -87,7 +80,10 @@ void Consumer::disconnected()
 {
     std::cout << "Consumer::disconnected()!" << std::endl;
     connectedToHost = false;
-    emit quit();
+    m_socket->disconnectFromHost();
+    m_socket->deleteLater();
+    m_writerThread->wait();
+    emit finished();
 }
 
 void Consumer::catchSocketError()

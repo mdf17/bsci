@@ -26,6 +26,9 @@ int main(int argc, char *argv[])
         Consumer * consumer = new Consumer(std::to_string(i));
         consumer->moveToThread(thread);
         QObject::connect(thread, SIGNAL(started()), consumer, SLOT(init()));
+        QObject::connect(consumer, &Consumer::finished, thread, &QThread::quit);
+        QObject::connect(consumer, &Consumer::finished, consumer, &QObject::deleteLater);
+        QObject::connect(thread, &QThread::finished, thread, &QThread::deleteLater);
         consumers << consumer;
         threads << thread;
         thread->start();

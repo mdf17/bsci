@@ -27,7 +27,6 @@ class Consumer : public QObject
     void readBlock();
     void disconnected();
     void catchSocketError();
-    void quit();
 
   private:
     // Allow multiple Consumers to exist

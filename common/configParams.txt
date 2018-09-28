@@ -7,4 +7,4 @@ maxInputQueueSize 10000
 maxTcpReaderQueueSize 100
 maxTcpWriterQueueSize 1000
 outputPath ./data
-useStdOut
+useStdOut 1
