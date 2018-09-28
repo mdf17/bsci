@@ -2,3 +2,5 @@ moc_*
 *.o
 bin/
 Makefile
+ModuleA/ModuleA
+ModuleB/ModuleB
