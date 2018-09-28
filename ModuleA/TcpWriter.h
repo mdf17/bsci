@@ -2,7 +2,6 @@
 #define TCPWRITER_H
 
 #include <QtCore/QObject>
-#include <QtCore/QQueue>
 #include <QtNetwork/QTcpSocket>
 
 #include "Common.h"
@@ -36,13 +35,14 @@ class TcpWriter : public QObject
 
   public slots:
     void init();
-    void disconnected();
+    void disconnect();
     void readyRead();
 
   private:
     int m_socketDescriptor;
     QTcpSocket * m_socket;
     int m_framesPerBlock;
+    bool connectedToHost;
 };
 
 

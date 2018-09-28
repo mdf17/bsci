@@ -1,7 +1,6 @@
 #ifndef FRAMEPARSER_H
 #define FRAMEPARSER_H
 
-
 #include <QtCore/QObject>
 
 #include "Common.h"
@@ -20,7 +19,7 @@ class FrameParser : public QObject
     Q_OBJECT
   
   public:
-    FrameParser(SharedQueue<PacketT>, SharedQueue<ChecksumT>, QObject *parent = NULL);
+    FrameParser(SharedQueue<PacketT>, QObject *parent = NULL);
 
     unsigned int parseHeader(const char *);
     unsigned int parseSample(const char *);
@@ -28,7 +27,6 @@ class FrameParser : public QObject
     void setNumPackets(unsigned int n) { m_numPackets = n; }
 
     SharedQueue<PacketT> m_inputDataQueue;
-    SharedQueue<ChecksumT> m_outputDataQueue;
 
 
   signals:
@@ -42,8 +40,6 @@ class FrameParser : public QObject
     unsigned int m_packetNumber;
     unsigned int m_numPackets;
     int m_packetsPerFrame;
-    std::vector<unsigned int> m_data;           // 8 channels of sample data
-    std::vector<unsigned int> m_checksumData;
 };
 
 #endif

@@ -1,18 +1,12 @@
-
-#include <iomanip>
-#include <bitset>
-
-
 #include "FrameParser.h"
 
-FrameParser::FrameParser(SharedQueue<PacketT> inputDataQueue, SharedQueue<ChecksumT> outputDataQueue, QObject *parent) 
+FrameParser::FrameParser(SharedQueue<PacketT> inputDataQueue, QObject *parent) 
     : QObject(parent), 
       m_packetNumber(-1), 
       m_numPackets(0), 
       m_packetsPerFrame(PACKETS_PER_FRAME)
 {
     m_inputDataQueue = inputDataQueue;
-    m_outputDataQueue = outputDataQueue;
 }
 
 unsigned int FrameParser::parseHeader(const char * packet) 
@@ -53,13 +47,8 @@ void FrameParser::parseFrames()
             m_packetNumber = packetNumber;
 
             for(size_t i = 0; i < NUM_CHANNELS; ++i) {
-                //std::cout << "Frame " << m_frameNumber 
-                //          << " Channel " << i << ": " 
-                //          << std::bitset<32>(m_data[i]) 
-                //          << std::endl;
                 checksum.sum[i] += parseSample(packet.data.data() + HEADER_SIZE + SAMPLE_SIZE*i);
             }
-            //std::cout << "HEADER " << packetNumber << std::endl;
             
             numPackets++;
 

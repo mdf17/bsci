@@ -24,7 +24,6 @@ int main(int argc, char *argv[])
     // Initialize the File Reader
     QThread *readerThread = new QThread;
     FileReader *reader = new FileReader(inputDataQueue);
-    //if (!reader->connectToDataStream("com_mod_input.bin")) {
     if (!reader->connectToDataStream()) {
         std::cout << "Unable to open data stream!" << std::endl;
         return 1;
@@ -37,10 +36,10 @@ int main(int argc, char *argv[])
 
     // Initialize the Frame Parser
     QThread *parserThread = new QThread;
-    FrameParser *parser = new FrameParser(inputDataQueue, outputDataQueue);
+    FrameParser *parser = new FrameParser(inputDataQueue);
     // Needed for when header numbers wrap around to beginning
     parser->setNumPackets(reader->getNumPackets());
-    QObject::connect(parser, &FrameParser::checksumReady, server, &Server::forwardChecksum);
+    QObject::connect(parser, &FrameParser::checksumReady, server, &Server::forwardChecksum, Qt::QueuedConnection);
     parser->moveToThread(parserThread);
     QObject::connect(parserThread, &QThread::started, parser, &FrameParser::parseFrames);
     QObject::connect(server, &Server::quit, parserThread, &QThread::deleteLater);

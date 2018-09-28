@@ -71,7 +71,7 @@ void Server::init()
     //    ipAddress = QHostAddress(QHostAddress::LocalHost).toString();
 
     //std::string ipAddressUtf8 = ipAddress.toUtf8().constData();
-    std::cout << "The server is running on IP: " << serverAddress().toString().toUtf8().constData() << " " 
+    std::cout << "Server::init(): Server running on IP: " << serverAddress().toString().toUtf8().constData() << " " 
                                                  << serverPort() << std::endl;
 }
 
@@ -92,6 +92,7 @@ void Server::incomingConnection(qintptr socketDescriptor)
 
 void Server::forwardChecksum(ChecksumT checksum)
 {
+    //std::cout << "Server::forwardChecksum" << std::endl;
     m_checksum = checksum;
     foreach (TcpWriter *writer, m_writers)
         writer->enqueueChecksum(checksum);

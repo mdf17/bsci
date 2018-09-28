@@ -2,11 +2,11 @@ QT += core network widgets
 # requires(qtConfig(filedialog))
 
 CONFIG += c++11
-CONFIG += debug
 
 TARGET = ModuleB
 
 INCLUDEPATH += ../common
+LIBS += -L../common -lcommon
 
 HEADERS += Threads.h Consumer.h
 

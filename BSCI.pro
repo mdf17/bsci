@@ -5,9 +5,9 @@ CONFIG += c++11 strict_c++
 CONFIG += debug
 
 TEMPLATE = subdirs
-SUBDIRS = ModuleA ModuleB
-#ModuleA.depends = common
-#ModuleB.depends = common
+SUBDIRS = common ModuleA ModuleB
+ModuleA.depends = common
+ModuleB.depends = common
 
 
 INCLUDE_PATH += /usr/include/qt5

@@ -69,9 +69,8 @@ class FileWriterThread : public QThread
     std::string m_id;
 
     QMutex mtx;
-    //QWaitCondition cond;
 
-    std::ofstream m_outputFile;
+    FILE *m_outputFile;
 
 };
 

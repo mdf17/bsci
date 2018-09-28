@@ -13,7 +13,7 @@ class Consumer : public QObject
     Q_OBJECT
 
   public:
-    Consumer(const std::string id, const QHostAddress hostAddress, const quint16 port);
+    Consumer(const std::string id);
     ~Consumer();
 
     void run(); // override;
