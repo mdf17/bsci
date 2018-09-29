@@ -13,26 +13,14 @@ int main(int argc, char *argv[])
 
     Config::instance()->init("../common/configParams.txt");
 
-    int numConsumers = 1;
+    std::string id;
     if (argc > 1) {
-        numConsumers = atoi(argv[1]);
+        id = std::string(argv[1]);
     }
 
-    QList<Consumer *> consumers;
-    QList<QThread *> threads;
-
-    for (int i = 0; i < numConsumers; i++) {
-        QThread * thread = new QThread;
-        Consumer * consumer = new Consumer(std::to_string(i));
-        consumer->moveToThread(thread);
-        QObject::connect(thread, SIGNAL(started()), consumer, SLOT(init()));
-        QObject::connect(consumer, &Consumer::finished, thread, &QThread::quit);
-        QObject::connect(consumer, &Consumer::finished, consumer, &QObject::deleteLater);
-        QObject::connect(thread, &QThread::finished, thread, &QThread::deleteLater);
-        consumers << consumer;
-        threads << thread;
-        thread->start();
-    }
+    Consumer c(id);
+    c.init();
+    c.show();
 
     return app.exec();
 }

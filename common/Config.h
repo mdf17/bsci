@@ -20,6 +20,8 @@ class Config : public QObject
     bool lookup(std::string key, std::string& val);
     std::string get(std::string key);
 
+    bool insert(const std::string& key, const std::string& value);
+
   private:
     std::map<std::string, std::string> m_configParams;
 };

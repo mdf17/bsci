@@ -26,6 +26,12 @@ class FileWriter : public QObject
 
     SharedQueue<QByteArray> frameBuffer;
 
+  public slots:
+    void close();
+
+  signals:
+    void finished();
+
   private:
     std::string m_id;
 

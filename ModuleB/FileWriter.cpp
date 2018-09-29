@@ -25,10 +25,16 @@ FileWriter::FileWriter(const std::string consumerId, const SharedQueue<QByteArra
     frameBuffer = buffer;
 }
 
+void FileWriter::close()
+{
+    emit finished();
+}
+
 FileWriter::~FileWriter()
 {
     m_ofstream.close();
     delete m_buf;
+    delete m_writer;
 }
 
 void FileWriter::init()

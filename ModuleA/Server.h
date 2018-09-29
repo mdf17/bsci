@@ -34,10 +34,6 @@ class Server : public QTcpServer
     void incomingConnection(qintptr socketDescriptor) override;
 
   private:
-
-    // size of TCP packet to send
-    unsigned int m_tcpPacketSize;
-
     // max number of allowable connections
     int m_maxConnections;
 };

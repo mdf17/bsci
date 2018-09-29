@@ -1,7 +1,0 @@
-How to exit? Does this just run forever?
-
-Are frames big-endian or little-endian?
-
-time stamp: when data was read or when it's published?
-
-

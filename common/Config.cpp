@@ -41,6 +41,16 @@ bool Config::lookup(std::string key, std::string& val)
     return false;
 }
 
+bool Config::insert(const std::string& key, const std::string& val)
+{
+    std::map<std::string, std::string>::iterator it = m_configParams.find(key);
+    if (it != m_configParams.end()) {
+        return false;
+    }
+    m_configParams[key] = val;
+    return true;
+}
+
 std::string Config::get(std::string key)
 {
     return m_configParams[key];

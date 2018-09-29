@@ -1,15 +1,60 @@
 #include <cstring>
 
+#include <QtWidgets>
+
 #include "Consumer.h"
 
-Consumer::Consumer(const std::string id)
-    : QObject(), m_id(id)
+Consumer::Consumer(const std::string id, QWidget *parent)
+    : QDialog(parent), m_id(id), idLabel(new QLabel), connectionStatusLabel(new QLabel)
 { 
     frameBuffer.reset(new ThreadSafeQueue<QByteArray>(MAX_QUEUE_SIZE));
+    auto quitButton = new QPushButton(tr("Quit"));
+    quitButton->setAutoDefault(false);
+    QObject::connect(quitButton, &QAbstractButton::clicked, this, &QWidget::close);
+
+    auto buttonLayout = new QHBoxLayout;
+    buttonLayout->addStretch(1);
+    buttonLayout->addWidget(quitButton);
+    buttonLayout->addStretch(1);
+
+    idLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    connectionStatusLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
+
+    QVBoxLayout *mainLayout = nullptr;
+    if (QGuiApplication::styleHints()->showIsFullScreen() || QGuiApplication::styleHints()->showIsMaximized()) {
+        auto outerVerticalLayout = new QVBoxLayout(this);
+        outerVerticalLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::Ignored, QSizePolicy::MinimumExpanding));
+        auto outerHorizontalLayout = new QHBoxLayout;
+        outerHorizontalLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::MinimumExpanding, QSizePolicy::Ignored));
+        auto groupBox = new QGroupBox(QGuiApplication::applicationDisplayName());
+        mainLayout = new QVBoxLayout(groupBox);
+        outerHorizontalLayout->addWidget(groupBox);
+        outerHorizontalLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::MinimumExpanding, QSizePolicy::Ignored));
+        outerVerticalLayout->addLayout(outerHorizontalLayout);
+        outerVerticalLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::Ignored, QSizePolicy::MinimumExpanding));
+    } else {
+        mainLayout = new QVBoxLayout(this);
+    }
+
+    mainLayout->addWidget(idLabel);
+    mainLayout->addWidget(connectionStatusLabel);
+    mainLayout->addLayout(buttonLayout);
+
+    setWindowTitle(QGuiApplication::applicationDisplayName());
+
+    idLabel->setText(tr("Consumer %1\n").arg(QString::fromStdString(m_id)));
 }
 
 Consumer::~Consumer()
 {
+    delete m_socket;
+}
+
+void Consumer::closeEvent(QCloseEvent *event)
+{
+    event->accept();
+    std::cout << "Closing..." << std::endl;
+    emit signalClosed();
 }
 
 void Consumer::init()
@@ -49,18 +94,19 @@ void Consumer::init()
     }
 
     if (m_socket->state() == QTcpSocket::ConnectedState) {
-        std::cout << "Connected on socket " << m_socket->socketDescriptor() << std::endl;
-        std::cout << "Consumer: Socket Address: " << to_string(m_socket->peerAddress().toString()) << std::endl;
-        std::cout << "Consumer: Socket Name: " << to_string(m_socket->peerName()) << std::endl;
-        std::cout << "Consumer: Socket Port: " << m_socket->peerPort() << std::endl;
         connectedToHost = true;
+        connectionStatusLabel->setText(tr("Connected on IP: %1 port: %2\n")
+                                     .arg(m_socket->peerAddress().toString()).arg(m_socket->peerPort()));
     }
 
     m_writer = new FileWriter(m_id, frameBuffer);
     m_writerThread = new QThread;
     m_writer->moveToThread(m_writerThread);
     QObject::connect(m_writerThread, &QThread::started, m_writer, &FileWriter::init);
-    QObject::connect(this, &Consumer::finished, m_writerThread, &QThread::deleteLater);
+    QObject::connect(this, &Consumer::signalClosed, m_writer, &FileWriter::close);
+    QObject::connect(m_writer, &FileWriter::finished, m_writer, &QObject::deleteLater);
+    QObject::connect(this, &Consumer::finished, m_writerThread, &QThread::quit);
+    QObject::connect(m_writerThread, &QThread::finished, m_writerThread, &QThread::deleteLater);
     //m_writerThread->start(QThread::LowPriority);
     m_writerThread->start();
     
@@ -78,11 +124,9 @@ void Consumer::readBlock()
 
 void Consumer::disconnected()
 {
-    std::cout << "Consumer::disconnected()!" << std::endl;
+    connectionStatusLabel->setText(tr("Disconnected\n"));
     connectedToHost = false;
     m_socket->disconnectFromHost();
-    m_socket->deleteLater();
-    m_writerThread->wait();
     emit finished();
 }
 

@@ -3,24 +3,32 @@
 
 #include <QThread>
 #include <QHostAddress> 
-#include <QtNetwork/QTcpSocket>
+#include <QTcpSocket>
+#include <QDialog>
 #include "FileWriter.h"
+
+class QCloseEvent;
+class QLabel;
 
 // Module B - Consumer class
 // Can be many Consumers for a single Producer
-class Consumer : public QObject
+class Consumer : public QDialog
 {
     Q_OBJECT
 
   public:
-    Consumer(const std::string id);
+    Consumer(const std::string id, QWidget *parent = 0);
     ~Consumer();
 
     SharedQueue<QByteArray> frameBuffer;
 
+  protected:
+    void closeEvent(QCloseEvent *event) override;
+
   signals:
     void error(QTcpSocket::SocketError socketError);
     void finished();
+    void signalClosed();
 
   public slots:
     void init();
@@ -45,6 +53,9 @@ class Consumer : public QObject
     QThread *m_writerThread;
 
     bool connectedToHost;
+
+    QLabel *idLabel;
+    QLabel *connectionStatusLabel;
 };
 
 #endif
