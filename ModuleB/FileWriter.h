@@ -42,9 +42,7 @@ class FileWriter : public QObject
     // to switch between writing to a file
     // and writing to stdout
     bool m_useStdOut;
-    std::streambuf * m_buf;
-    std::ofstream m_ofstream;
-    std::ostream *m_writer;
+    FILE * m_outFile;
 
 };
 

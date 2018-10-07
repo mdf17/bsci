@@ -1,15 +1,13 @@
 #include "FileWriter.h"
 
 
-// separator string (if piping to stdout)
-std::string separator = "";
 
 std::ostream & operator << (std::ostream &out, const ChecksumT &c)
 {
-    out << c.timestamp << separator;
+    out << c.timestamp << std::endl;
     for (size_t i = 0; i < NUM_CHANNELS; ++i)
-        out << c.sum[i] << separator;
-    out << separator;
+        out << c.sum[i] << std::endl;
+    out << std::endl;
     return out;
 }
 
@@ -32,9 +30,6 @@ void FileWriter::close()
 
 FileWriter::~FileWriter()
 {
-    m_ofstream.close();
-    delete m_buf;
-    delete m_writer;
 }
 
 void FileWriter::init()
@@ -66,15 +61,9 @@ void FileWriter::init()
     std::string fileName = sOutputPath + "com_mod_output_" + m_id + ".bin";
     if (m_useStdOut) {
         std::cout << "Using stdout!" << std::endl;
-        m_buf = std::cout.rdbuf();
     } else {
-        m_ofstream.open(fileName, std::ios::out | std::ios::binary);
-        m_buf = m_ofstream.rdbuf();
+        m_outFile = fopen(fileName.c_str(), "wb");
     }
-    if (m_useStdOut) {
-        separator = "\n";
-    }
-    m_writer = new std::ostream(m_buf);
     writeBlocks();
 }
 
@@ -100,10 +89,21 @@ void FileWriter::writeBlocks()
                 break;
             }
 
-            *m_writer << checksum;
+            if (m_useStdOut) {
+                std::cout << checksum;
+            }
+
+            else {
+                fwrite(&checksum.timestamp, sizeof(double), 1, m_outFile);
+                fwrite(&checksum.sum, sizeof(unsigned int), 8, m_outFile);
+            }
+
         }
         if (stream.status() == QDataStream::Ok) {
             m_bytesWritten += block.size();
         }
     }
+    std::cout << "Done writing file!" << std::endl;
+    fclose(m_outFile);
+    m_outFile = NULL;
 }
