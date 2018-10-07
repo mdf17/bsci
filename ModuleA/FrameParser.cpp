@@ -32,6 +32,9 @@ unsigned int FrameParser::parseSample(const char * packet)
 
 void FrameParser::parseFrames()
 {
+#ifdef TRUTH_FILE
+    FILE * truth = fopen("com_mod_output_truth.bin", "wb");
+#endif
     while (true) {
         ChecksumT checksum;
         PacketT packet;
@@ -62,6 +65,28 @@ void FrameParser::parseFrames()
         }
 
         checksum.timestamp = packet.timestamp;
+#ifdef TRUTH_FILE
+        if (checksum.timestamp > 10 && checksum.timestamp < 11) {
+            //std::cout << "writing checksum " << numChecksums << std::endl;
+            size_t retval = fwrite(&checksum.timestamp, sizeof (double), 1, truth);
+            if (retval != 1) {
+                std::cout << "Error writing timestamp" << std::endl;
+            }
+            //std::cout << checksum.timestamp << std::endl;
+            retval = fwrite(&checksum.sum, sizeof(unsigned int), 8, truth);
+            if (retval != 8) {
+                std::cout << "Error writing checksums" << std::endl;
+            }
+            for(int i = 0; i < 8; i++) {
+                //std::cout << checksum.sum[i] << std::endl;
+            }
+        } else if (checksum.timestamp > 11 && truth) {
+            std::cout << "closing out file" << std::endl;
+            fclose(truth);
+            truth = NULL;
+        }
+#endif
+
 
         emit checksumReady(checksum);
     }
