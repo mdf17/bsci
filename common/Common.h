@@ -24,7 +24,7 @@ const QDataStream::Version QDataStreamVersion = QDataStream::Qt_5_6;
 // Program Constants
 const unsigned int  BYTE                            = 8;                                // unitless
 const unsigned int  BIT                             = 1;                                // unitless
-const unsigned int  FRAME_RATE                      = 640;                            // Hz
+const unsigned int  FRAME_RATE                      = 64000;                            // Hz
 const unsigned int  NUM_CHANNELS                    = 8;                                // unitless
 const unsigned int  PACKETS_PER_FRAME               = 128;                              // unitless
 const unsigned int  PACKET_SIZE                     = sizeof(PacketHeader) + sizeof(PacketSample)*NUM_CHANNELS; //bytes
